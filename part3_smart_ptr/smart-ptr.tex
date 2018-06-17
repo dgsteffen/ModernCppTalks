@@ -1,0 +1,148 @@
+\section[Smart Pointers]{Smart Pointers}
+\subsection{smart pointers}
+
+\begin{frame}[fragile,t]
+\frametitle{Dynamic Memory Is Hard}
+{\scriptsize\
+\begin{verbatim}
+void foo() {
+  double* d = new double[70];
+  ...
+  if (condition1)
+    return;       // Leak! in Yan 
+  ...
+  if (error)
+    throw ex;     // Leak!
+  ...             // an exception happens
+  ...             // in here -- Leak!
+
+  delete d;      // cleanup
+}
+\end{verbatim}
+}
+\end{frame}
+
+\begin{frame}[fragile,t]
+\frametitle{Or Other Things}
+{\scriptsize\
+\begin{verbatim}
+void foo() {
+  FILE* f = fopen(p,'w');    
+  ...
+  if (condition1) // Resource Leak
+    return;       // 
+  ...
+  if (error)
+    throw ex;     // Leak!
+  ...             // an exception happens
+  ...             // in here -- Leak!
+
+  fclose(f);     // cleanup
+}
+\end{verbatim}
+}
+\pause
+\center{ \textcolor{purple} {Mutexes?  Run Away!}}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Dynamic Memory Is Easy}
+{\scriptsize\
+\begin{verbatim}
+void foo() {
+  shared_ptr<Widget> w = new Widget(...);
+  ...
+  if (condition1)
+    return;       // ~w called -- cleans up
+  ...
+  if (error)
+    throw ex;     // no leak
+  ...             // an exception happens
+  ...             // in here -- fine
+
+                 // cleanup -- easy!
+}
+\end{verbatim}
+}
+\end{frame}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Standard Smart Pointers \& Friends}
+\center{ \textcolor{purple} {Never write new or delete again}}
+
+\begin{itemize}
+\item<1-> Reference Counting: {\scriptsize \texttt{ std::shared\_ptr<T> }}
+\item<1-> Sole Ownership: {\scriptsize\texttt{ std::unique\_ptr<T> }}
+\vskip 6pt
+\item<2-> {\scriptsize\begin{verbatim} auto d = make_shared<double>(3.14); \end{verbatim}}
+\item<2-> {\scriptsize\begin{verbatim} auto f = make_shared<Foo>(3.14, my_airplane, Camel() ); \end{verbatim}}
+\item<2-> {\scriptsize\begin{verbatim} auto d = make_unique<vector<int>>({1,2,3,4,5}); \end{verbatim}}
+\item<3-> \texttt{make\_shared}, \texttt{make\_unique} more efficient and safer!
+\end{itemize}
+\uncover<3->{Note: \texttt{make\_unique} was left out of the standard, they're fixing it}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Exception-safe function calls}
+{\scriptsize Herb Sutter, GOTW 102  \hskip 1in   http://herbsutter.com/gotw/\_102/}
+\begin{itemize}
+\item  <1-> What can you say about the order of evaluation?
+\item[]<1-> {\scriptsize\begin{verbatim}int f( expr1, expr2 ) ;\end{verbatim}}
+\item[]<1-> {\scriptsize\begin{verbatim}i = f( g (expr1), h (expr2) ) ;\end{verbatim}}
+%% order of evaluation.
+%%% All args must be evaluated before the function is called
+%%% Functions don't interleave
+%%% Function args can be evaluated in an order, including interleaved,
+%%%    - unless restricted by other rules
+%%% :: expr 1 and 2 evalued before f, but may be interleaved
+%%% || expr 1 and expr 2 interleaved, g and h in any order but not interleaved,
+%%% exprs before g and h
+\item  <2-> What are the problems with this?
+\item[]<2-> {\scriptsize\begin{verbatim}int f( T*, U2* ) ;\end{verbatim}}
+\item[]<2-> {\scriptsize\begin{verbatim}i = f( new T, new U ) ;\end{verbatim}}
+%% uh-oh.  If exception between memory allocation
+\item  <3-> Throw smart pointers at the problem -- no dice
+\item[]<3-> {\scriptsize\begin{verbatim}int f( unique_ptr<T>, unique_ptr<U> ) ;\end{verbatim}}
+\item[]<3-> {\scriptsize\begin{verbatim}i = f( new T, new U ) ; // just as bad\end{verbatim}}
+\item[]<3-> {\scriptsize\begin{verbatim}i = f( unique_ptr<T>(new T), unique_ptr<U>(new U) ) ;\end{verbatim}}
+% No -- no better.  Still separation between memory allocation and initialization
+\item  <4-> The correct solution
+\item[]<4-> {\scriptsize\begin{verbatim}i = f( make_unique<T>(), make_unique<U>()) ;\end{verbatim}}
+%%% OK -- now we're safe within function calls
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Shared Pointer's Bad Rep}
+\begin{itemize}
+\item<1-> Don't make unnecessary copies.
+\item[]<1-> {\scriptsize\begin{verbatim}void foo (shared_ptr<Bar> b); ;\end{verbatim}}
+\item<2-> To work with the object, \emph{Pass the object itself by
+  const\&}.  This is agnostic to object lifetime.
+\item<3-> To observe the smart pointer, pass by const\& to \texttt{shared\_ptr}. (Why?)
+\note Probably to preserve polymorphic behavior.
+\item<4-> To participate in object lifetime, either
+  \begin{itemize}
+    \item Pass \texttt{shared\_ptr const\&} and make a copy, or
+    \item Pass by value and use that copy.  (See copy elision)
+  \end{itemize}
+\item<5-> Don't pass by non-const reference. \emph{(Unless you're up
+  to something nefarious.)}
+% Herb's example: take by non-const&, grab a & to the object, reseat
+% the shared_ptr -- if it was the last owner, boom.
+%
+\end{itemize}
+\end{frame}
+

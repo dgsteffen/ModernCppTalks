@@ -1,0 +1,111 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{RAII}
+\framesubtitle{Resource Aquisition Is Initialization}
+\begin{itemize}
+\item Smart pointers are a specific case of a more general idiom, ``RAII''
+\item Developed to manage resources in the presence of exceptions, but
+  they are much more widely useful.
+\item The key idea:  \Emph{Tie resource management to object lifetime}
+\item Resource manager objects receive the resource in their
+  ctor, and release it in their dtor.
+\item Normal scoping rules now ensure proper cleanup.
+\item Exceptions cause local variables to be destructed, so no leaks.
+\end{itemize}
+\vskip 12pt
+\pause{}
+\center{\Emph{ The most important operation in \CC: }}
+\pause{}
+\center{\Emph{\texttt{\}}}}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Dynamic Memory Is Easy}
+{\scriptsize\
+\begin{verbatim}
+OLD:                              NEW:
+
+void foo() {                      void foo() {
+  Widget* d = new Widget();          smart_ptr<Widget> d = new Widget();
+  ...                                ....
+  if (condition1)                    if (condition1) 
+    return;       // Leak!             return;        // no leak!
+  ...
+  if (error)                         if (error)
+    throw ex;                          throw ex;      // no leak!
+  ...                                ...
+  foo(); // throws, leak!            foo();           // no leak!
+  ...             
+
+  delete d;      // cleanup          // no delete, no leak!
+}                                 } 
+\end{verbatim}
+}
+
+(for some definition of ``smart\_ptr'')
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{And the code gets cleaner too}
+Remember out Single-Entry-Single-Exit example:
+
+\begin{columns}[t]
+\column{.5\textwidth}
+Heavily nested if-blocks:
+{\scriptsize\begin{verbatim}
+void foo() {
+  if (precondition1) {
+    double* d = new double[70];
+    if (d) {
+      ...
+      if (conditionA) {
+        Widget* w = new Widget;
+        if (conditionB) {
+           // finally do some work
+           ...
+           FiddleWidget(w);
+           ...
+           }
+        delete w;
+        }
+     delete d[];
+     }
+   }
+  return;
+}
+\end{verbatim}}
+\pause{}
+\column{.5\textwidth}
+Becomes this:
+{\scriptsize\begin{verbatim}
+void foo() {
+  if (!precondition1)  return;
+  vector<double> d (70);   // #1
+                           // #2
+  ...
+  if (!conditionA) return;
+  smart_ptr<Widget> w = new Widget;
+  if (conditionB) return;
+  // finally do some work
+  ...
+  FiddleWidget(w);
+  ...
+
+
+
+
+
+
+  return;
+}
+\end{verbatim}}
+\end{columns}
+\pause{}
+\Emph{Even in the absence of exceptions, exception-safe code is cleaner,
+faster, and more maintainable.}
+\end{frame}

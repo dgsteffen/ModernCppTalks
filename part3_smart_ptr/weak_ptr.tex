@@ -1,0 +1,76 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{weak\_ptr}
+\begin{frame}[fragile]
+\frametitle{weak\_ptr}
+\framesubtitle{Handle circular shared\_ptrs}
+
+\begin{itemize}
+\item Non-owning observer of a shared\_ptr-managed resource
+{\scriptsize\begin{verbatim}
+shared_ptr<int> a (new int(42)); // refcount == 1
+shared_ptr<int> b(a)             //      now == 2
+
+weak_ptr<int> w(b);              // points to same int,
+                                 // leaves refcount at 2
+assert (*w == 42);     // error! Can't deref weak ptr
+\end{verbatim}
+}
+\pause{}
+\item No deref operator!  This is for your protection, because the
+  thing it points to may be gone.
+\pause{}
+\item To access the thing, lock:
+{\scriptsize\begin{verbatim}
+
+shared_ptr<int> c = w.lock();   // convert to shared_ptr, refcount == 3
+
+assert( c );               // ok if the thing still exists
+
+assert (!w.expired());           // another way to check
+
+a.reset();  // refcount == 2
+b.reset();  // refcount == 1
+c.reset();  // refcount == 0, ptr deleted
+
+assert (w.expired());
+shared_ptr<int> bad = w.lock();  // bad == nullptr
+\end{verbatim} 
+}
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{weak\_ptr part 2}
+Use for things that may or may not exist
+\begin{itemize}
+\item If the thing exists, use it (via the shared\_ptr created by locking)
+\item If the thing doesn't exist, you can test and do something reasonable.
+\item \Emph{If there's nothing reasonable, you have a big design problem.}
+\end{itemize}
+\pause{}
+\vskip 12pt
+Example from Herb Sutter: factory with cache
+{\scriptsize\begin{verbatim}
+shared_ptr<widget> make_widget(int id) 
+{
+  static map<int, weak_ptr<widget>> cache;
+
+  auto sp = cache[id].lock();
+
+  if (!sp) cache[id] = sp = load_widget(id);
+
+  return sp;
+}
+\end{verbatim}
+}
+
+\vskip 12pt
+\pause{}
+
+\center{\Emph{Use when necessary (and you'll know when it's necessary)}}
+
+\end{frame}
+

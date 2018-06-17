@@ -1,0 +1,379 @@
+\begin{frame}[fragile,t]
+\frametitle{Standard Smart Pointers}
+\begin{description}
+\vskip 12pt
+\item [auto\_ptr]  \textcolor{red}{DEPRECATED}
+\vskip 12pt
+\item [unique\_ptr] Single Ownership
+\vskip 12pt
+\item [shared\_ptr] Shared Ownership
+\vskip 12pt
+\item [weak\_ptr] Breaks ownership cycles
+\vskip 12pt
+\end{description}
+\end{frame}
+
+
+\subsection{auto\_ptr}
+
+\begin{frame}[fragile,t]
+\frametitle{auto\_ptr}
+An early attempt to provide single ownership semantics.
+{\scriptsize\
+\begin{verbatim}
+
+auto_ptr<int> a = new int(5);
+
+auto_ptr<int> b;
+
+b = a;  // changes a!
+
+a == NULL; // now true!
+
+\end{verbatim}}
+
+\begin{itemize}
+\item Destructive copy!
+\item Wonky semantics -- can't use in standard containers, don't act
+  like anything we have a good model for.
+\item Desired behavior impossible without C++11 move semantics
+\end{itemize}
+\vskip 12pt
+\pause{}
+\center{\Emph{Don't Use}}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{unique\_ptr}
+
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr}
+
+With the advent of move semantics, we now have a proper solution.
+
+{\scriptsize\begin{verbatim}
+#include <memory>
+
+unique_ptr<int> i(new int(4));
+cout << "i " << *i << endl;     // Use just like normal pointer
+
+unique_ptr<int> j;
+
+j = i;                          // compile error (use of deleted fn)
+
+j = std::move(i);               // OK, *j == 4
+
+int* nonowner = j.get()         // get the pointer, keep ownership
+int* owner = j.release();       // release ownership, now j==nullptr
+
+j = owner;                      // take ownership of existing ptr
+
+j.reset();                      // delete ptr, now j==nullptr
+\end{verbatim}}
+\pause{}
+\begin{itemize}
+\item Moveable, but not copyable
+\item Moved-from unique\_ptr is ``NULL'', but don't do that!
+\item Generally use just like a pointer
+\begin{itemize}
+  \item Deref with ``*''
+  \item Explicit conversion to bool
+  \item Can compare to nullptr
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Using unique\_ptr}
+Given existing code:
+{\scriptsize\begin{verbatim}
+void ViewWidget    ( const Widget&       );
+void FiddleWidget  (       Widget&       );
+void ViewWidgetPtr (       Widget* const );
+void MungeWidgetPtr(       Widget*       );
+\end{verbatim}
+}
+
+and a unique\_ptr<Widget> wptr : 
+
+{\scriptsize\begin{verbatim}
+ViewWidget     (*wptr);    // pass by const&
+
+FiddleWidget   (*wptr);  // Fine -- change the object, wptr retains owernship
+
+ViewWidgetPtr  (wptr.get()); // OK, the pointer is const
+
+MungeWidgetPtr (wptr.get());  // Danger?
+\end{verbatim}}
+
+\begin{itemize}
+\item Be careful when passing the pointer to legacy functions -- make sure
+they're not taking ownership.
+\item If they do, send wptr.release()  (explicitly give up ownership)
+\pause{}
+\item \Emph{If you're not sure... you have a problem}
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% herb sutter, 12:12 - 21:50
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr as function argument}
+\framesubtitle{Herb Sutter, GotW \#91}
+What do these mean?
+{\scriptsize\begin{verbatim}
+void f( widget& );                    (a)
+void f( widget* );                    (b)
+void f( unique_ptr<widget> );         (c)
+void f( unique_ptr<widget>& );        (d)
+void f( const unique_ptr<widget>& );  (e)
+\end{verbatim}
+}
+\begin{itemize}
+\pause{}
+\item (a) is preferred -- observe or process the object directly
+\pause{}
+\item (b) is either
+\begin{itemize}
+  \item Legacy or OS (C code -- no references!)
+  \item Observing or processing \emph{the pointer} (taking ownership,
+    reseating, etc)
+  \item Using the NULL ptr as a sentinel value, or the value is optional
+  \item Incorrect (Repent ye C programmers!)
+\end{itemize}
+\pause{}
+\item (c) is a sink.  (Pass by value...) This is a widget-consuming
+  function (that accepts raw-pointers).  The old-fashioned way is:
+{\scriptsize\begin{verbatim}
+void bad_sink( widget* p); // will destroy p. PLEASE READ THIS
+\end{verbatim}
+}
+\pause{}
+\item (d) is for reseating an existing unique\_ptr 
+\pause{}
+\item (e) is a mistake; there's never any reason to do this.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr custom deleter}
+Custom deleter: provide a function to call for deletion
+{\scriptsize\begin{verbatim}
+auto dtor = [](int* p) { cout << "Ptr holds " << *p << endl; delete p; };
+
+unique_ptr<int, decltype(dtor)> q (new int(42), dtor);
+
+q.reset();  // prints ``Ptr holds 42''
+\end{verbatim}}
+
+
+\vskip 12pt
+
+More generally, this allows us to run \emph{arbitrary code} when the
+object is deleted.
+
+
+\end{frame}
+
+\subsection{shared\_ptr}
+
+
+\begin{frame}[fragile]
+\frametitle{shared\_ptr}
+\begin{itemize}
+\item Shared ownership -- make copies and send 'em out into the big wide
+world.
+
+\item Reference counted -- memory released only when the last observer
+goes out of scope
+
+\item Provides the C++ equivalent of a garbage collector, with
+  deterministic behavior.
+
+\end{itemize}
+
+{\scriptsize\begin{verbatim}
+void foo() 
+{  
+  shared_ptr<int> p1(new int); // count is 1
+  {
+    shared_ptr<int> p2(p1);    // count is 2
+    {
+      shared_ptr<int> p3(p1);  // count is 3
+    }                          // count goes back down to 2
+  }                            // count goes back down to 1
+}            // here the count goes to 0 and the int is deleted.
+\end{verbatim}}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{shared\_ptr part 2}
+
+Other operations:
+{\scriptsize\begin{verbatim}
+
+int* p = p1.get();             // get raw pointer (non-owning!!!)
+
+long int use = p1.use_count(); // refcount
+
+bool u = p1.unique();          // true if refcount==1
+
+p1.reset();                    // drops refcount by 1, calls dtor if 0
+\end{verbatim}
+}
+
+
+
+\begin{itemize}
+\pause{}
+\item Minimal overhead (no more than necessary)
+\begin{itemize}
+  \item each object has an additional dynamically allocated address to
+    store the refcount
+  \item Increment/decrement is thread-safe, which means a mutex
+\end{itemize}
+\pause{}
+\item Minimal, but not zero; these have a bad (and unjustified)
+  reputation for bad runtime performance.
+\vskip 12pt
+\pause{}
+\item Beware of circular references!
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{shared\_ptr as function argument}
+\framesubtitle{Herb Sutter, GotW \#91}
+What do these mean?
+{\scriptsize\begin{verbatim}
+void f(       shared_ptr<widget> );   (f)
+void f(       shared_ptr<widget>& );  (g)
+void f( const shared_ptr<widget>& );  (h)
+\end{verbatim}
+}
+\begin{itemize}
+\pause{}
+\item (f) takes shared ownership (it's taking a copy, and that's what
+  copying a shared\_ptr means)
+\pause{}
+\item (g) manipulates the shared\_ptr; possibly reseating \emph{this}
+  one.  Not commonly used, I couldn't find many good examples.
+\pause{}
+\item (h) Hmm... means I \emph{might} make a copy, but I'm not sure yet?
+\end{itemize}
+\vskip 12pt
+\pause{}
+Remember, if you're interested in just the widget, \Emph{take just the widget}.
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{make\_shared, make\_unique}
+\begin{frame}[fragile]
+\frametitle{``make'' functions}
+\begin{columns}[t]
+\column{.5\textwidth}
+This is OK
+{\scriptsize\begin{verbatim}
+unique_ptr<Widget> up = new Widget(...);
+
+shared_ptr<Camel> sp = new Camel(...);
+\end{verbatim}}
+\pause{}
+\column{.5\textwidth}
+But this is better
+{\scriptsize\begin{verbatim}
+auto up = make_unique<Widget>(...);
+
+auto sp = make_shared<Camel>(...);
+\end{verbatim}}
+\end{columns}
+\vskip 12pt
+\pause{}
+\begin{itemize}
+\item Only type the type once : ``DRY'' (Don't Repeat Yourself) principle
+\vskip 6pt
+\item Exception safety:
+{\scriptsize\begin{verbatim}
+processWidgetCamel( unique_ptr<Widget>(new Widget()),
+                    shared_ptr<Camel> (new Camel()) );
+\end{verbatim}}
+may leak if either constructor throws.
+\vskip 6pt
+\item We are all used to being twitchy about new/delete.  
+\begin{itemize}
+  \item Trained from birth: see a new, look for the delete
+  \item \Emph{This is a good survival habit we don't want to weaken.}
+  \item With smart pointers, we don't write delete, so don't write new.
+  \end{itemize}
+\end{itemize}
+\pause{}
+\center{\Emph{Never write new or delete again}}
+
+\end{frame}
+
+
+
+
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile]
+%% \frametitle{Exception-safe function calls}
+%% {\scriptsize Herb Sutter, GOTW 102  \hskip 1in   http://herbsutter.com/gotw/\_102/}
+%% \begin{itemize}
+%% \item  <1-> What can you say about the order of evaluation?
+%% \item[]<1-> {\scriptsize\begin{verbatim}int f( expr1, expr2 ) ;\end{verbatim}}
+%% \item[]<1-> {\scriptsize\begin{verbatim}i = f( g (expr1), h (expr2) ) ;\end{verbatim}}
+%% %% order of evaluation.
+%% %%% All args must be evaluated before the function is called
+%% %%% Functions don't interleave
+%% %%% Function args can be evaluated in an order, including interleaved,
+%% %%%    - unless restricted by other rules
+%% %%% :: expr 1 and 2 evalued before f, but may be interleaved
+%% %%% || expr 1 and expr 2 interleaved, g and h in any order but not interleaved,
+%% %%% exprs before g and h
+%% \item  <2-> What are the problems with this?
+%% \item[]<2-> {\scriptsize\begin{verbatim}int f( T*, U2* ) ;\end{verbatim}}
+%% \item[]<2-> {\scriptsize\begin{verbatim}i = f( new T, new U ) ;\end{verbatim}}
+%% %% uh-oh.  If exception between memory allocation
+%% \item  <3-> Throw smart pointers at the problem -- no dice
+%% \item[]<3-> {\scriptsize\begin{verbatim}int f( unique_ptr<T>, unique_ptr<U> ) ;\end{verbatim}}
+%% \item[]<3-> {\scriptsize\begin{verbatim}i = f( new T, new U ) ; // just as bad\end{verbatim}}
+%% \item[]<3-> {\scriptsize\begin{verbatim}i = f( unique_ptr<T>(new T), unique_ptr<U>(new U) ) ;\end{verbatim}}
+%% % No -- no better.  Still separation between memory allocation and initialization
+%% \item  <4-> The correct solution
+%% \item[]<4-> {\scriptsize\begin{verbatim}i = f( make_unique<T>(), make_unique<U>()) ;\end{verbatim}}
+%% %%% OK -- now we're safe within function calls
+%% \end{itemize}
+
+%% Bigger point -- we are all used to being twitchy about new/delete.  We
+%% see a new, we look for the delete
+
+%% This is a *good survival habit* we don't want to weaken.
+
+%% Smart ptrs... we don't write delete, so don't write new.
+
+%% There are some arcane issues involved.... extra slide.
+
+%% \end{frame}
+

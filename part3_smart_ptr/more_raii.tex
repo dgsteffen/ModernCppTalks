@@ -1,0 +1,44 @@
+\subsection{RAII in the large
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{RAII}
+
+Points:
+
+- smart prts are RAII, but they are the most crude and least
+attractive. ``Assembly language of RAII''.
+
+- The existence of the resource is still visible, the handle adds no
+semantics.  *you still have a pointer*
+
+- Contrast with std::vector:  what resource?  It just works and takes
+care of the details.
+
+- [ return to earlier example, double[70] ]
+
+- example in our own code.  CDS.  What resource?  (Mutexes)
+
+  - victim of our own success, you forget there's a mutex and do
+    inefficient things.  This is a good sign, actually.  (A better
+    design would be efficient in the face of this, but ...)
+
+- Consider scoped objects.
+
+  - scoped mutex
+  - scoped CDS lock
+
+  These things use the RAII mechanism to execude code.  The
+  ``resource'' being managed is just code invariant.  This is very
+  powerful.
+
+- Sean Parent's talk
+
+- Hint at Alexandrescu's
+
+
+
+
+
+\end{frame}
+
