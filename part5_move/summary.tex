@@ -1,0 +1,115 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection[Summary]{Summary}
+
+\begin{frame}[fragile]
+\frametitle {Summary: Lvalues and Rvalues}
+\begin{itemize}[<+->]
+\item Lvalues: objects with names (the variables we all know and love)
+\item \texttt{\&}: ref to an lvalue (not rvalue!)
+\item \texttt{const\&}: ref to anything (lvalue or rvalue)
+\item Rvalue: unnamed temporary or other ephemeral thing. 
+\item \texttt{\&\&}: an \emph{lvalue}, but binds \emph{only} to rvalues.
+\item \texttt{const\&\&}: possible but useless.
+\vskip 6pt
+\item Functions that take \texttt{\&\&}s can steal resources from them.
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle {Rules Of Thumb 1: Code For Copy Elision}
+\begin{itemize}[<+->]
+\item Pass By Value If You Want A Copy:
+{\scriptsize
+\begin{verbatim}
+void foo ( const bar& b) {  // not this
+  bar local = b;
+  // ... modify local
+}
+
+void foo ( local b ) {        // but this
+ // ... modify local 
+}
+
+\end{verbatim}
+}
+because the compiler can either A) elide the copy or B) move to it if
+possible.
+
+\vskip 12pt
+\item Enable RVO When Possible:
+  \begin{itemize}
+    \item GCC supports URVO in general.
+    \item GCC supports NRVO, but all return statements must return the
+      same variable.
+    \item Don't warp code to enable RVO unless you know it's really
+      critical.
+   \end{itemize}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle {Rules Of Thumb 2: Coding Movable Types}
+\begin{itemize}[<+->]
+\item Declaring a movable type looks like this:
+{\scriptsize
+\begin{verbatim}
+struct A {
+  A (const A&  lvalue);    // copy ctor
+  A (const A&& rvalue);    // move ctor
+
+  A& operator=(const A&  lval);  // copy assignment
+  A& operator=(      A&& rval);  // move assignment
+};
+
+void swap(A& a, A& b);   // customize using move semantics
+
+\end{verbatim}
+}
+
+\vskip 6pt
+
+
+\item swap?    The standard provides:
+{\scriptsize
+\begin{verbatim}
+template<class T> void swap (T&a, T&b) { T c(a); a=b; b=c; }
+\end{verbatim}
+}
+which gets used a lot in standard containers and algorithms.  Provide
+an optimized version if it makes sense for your class.  You can fiddle
+pointers, or use move semantics directly:
+{\scriptsize
+\begin{verbatim}
+template<class T> void swap (T&a, T&b) { 
+T c( move(a) ); a=move(b); b=move(c); }
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\begin{frame}[fragile]
+\frametitle{Rules Of Thumb 3}
+\begin{itemize}
+\item Leave moved-from objects in a destructable and assignable, but
+  not necessarily consistent, state.
+\item Move operations preserve user-visible side effects on both LHS
+and RHS. (E.G., LHS's old resources get released immediately.)
+Consensus seems to be moving towards 
+``Any dtor side effects should explicitly carried out in move.''
+
+\item Tell the compiler you're done with an object with std::move().
+\item Remember: move is an optimization of copy, so all of the above
+  can be ignored without any consequence worse than missed
+  optimization opportunities.
+\end{itemize}
+
+\end{frame}

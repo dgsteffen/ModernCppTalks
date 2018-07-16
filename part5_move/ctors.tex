@@ -1,0 +1,155 @@
+
+\subsection{Delegating and Inheriting Ctors}
+\lyxframeend{}
+
+%\lyxframe{auto} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 1
+\begin{frame}[fragile]
+\frametitle{Delegating Ctors}
+(from Stroustrup's page):
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+In C++98, if you want two constructors to do the same thing, repeat yourself or call "an init() function." For example:
+
+\begin{verbatim}  
+class X {
+  int a;
+
+  validate(int x) { ... }
+
+ public:
+
+  X(int x) { validate(x); }
+  X()      { validate(42); }
+  X(string s) { int x = lexical_cast<int>(s); validate(x); }
+  // ...
+};
+\end{verbatim}
+}
+
+\column{.5\textwidth}
+{\scriptsize
+
+Verbosity nders readability and repetition is error-prone. Both get in
+the way of maintainability. So, in C++0x, we can define one
+constructor in terms of another:
+
+\begin{verbatim} 
+class X {
+  int a;
+
+ public:
+
+  X(int x) { ...  }
+  X() :X{42} { }
+  X(string s) :X{} { }
+  // ...
+};
+\end{verbatim}
+}
+\end{columns}
+
+Gotchas: none known yet.
+
+However, one possibly important bit:
+
+The lifetime of an object begins when any constructor (i.e., in the
+case of delegation, the ulti‐ mate target constructor) is successfully
+completed. This means that an exception thrown from the body of a
+delegating constructor will cause the destructor to be invoked
+automatically.
+
+Note that delegating to a base class' ctors has always been
+supported.  Now we can delegate to our own.
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors}
+
+People sometimes are confused about the fact that ordinary scope rules apply to class members. In particular, a member of a base class is not in the same scope as a member of a derived class:
+
+
+	struct B {
+		void f(double);
+	};
+
+	struct D : B {
+		void f(int);
+	};
+
+	B b;   b.f(4.5);	// fine
+	D d;   d.f(4.5);	// surprise: calls f(int) with argument 4
+
+In C++98, we can "lift" a set of overloaded functions from a base class into a derived class:
+
+
+	struct B {
+		void f(double);
+	};
+
+	struct D : B {
+		using B::f;     // bring all f()s from B into scope
+		void f(int);    // add a new f()
+	};
+
+	B b;   b.f(4.5);	// fine
+	D d;   d.f(4.5);	// fine: calls D::f(double) which is B::f(double)
+
+I have said that "Little more than a historical accident prevents using this to work for a constructor as well as for an ordinary member function." C++0x provides that facility:
+
+
+	class Derived : public Base { 
+	public: 
+		using Base::f;    // lift Base's f into Derived's scope -- works in C++98
+		void f(char);     // provide a new f 
+		void f(int);      // prefer this f to Base::f(int) 
+
+		using Base::Base; // lift Base constructors Derived's scope -- C++0x only
+		Derived(char);    // provide a new constructor 
+		Derived(int);     // prefer this constructor to Base::Base(int) 
+		// ...
+	}; 
+
+If you so choose, you can still shoot yourself in the foot by inheriting constructors in a derived class in which you define new member variables needing initialization:
+
+
+	struct B1 {
+		B1(int) { }
+	};
+
+	struct D1 : B1 {
+		using B1::B1; // implicitly declares D1(int)
+		int x;
+	};
+
+	void test()
+	{
+		D1 d(6);	// Oops: d.x is not initialized
+		D1 e;		// error: D1 has no default constructor
+	}
+
+You might remove the bullet from your foot by using a member-initializer:
+
+
+    	struct D1 : B1 {
+    		using B1::B1;	// implicitly declares D1(int)
+    		int x{0};	// note: x is initialized
+    	};
+
+    	void test()
+    	{
+    		D1 d(6);	// d.x is zero
+    	}
+
+
+
+\end{frame}
+
+

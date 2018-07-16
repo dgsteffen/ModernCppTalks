@@ -1,0 +1,84 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{\{\} initialization} \lyxframeend{}
+
+\begin{frame}[fragile]
+\frametitle{Uniform initialization and initializer lists}
+
+\begin{columns}[t]
+\column{.5\textwidth}
+\begin{itemize}
+\item<1->{\scriptsize\begin{verbatim} complex<double> c (2,72, 3.14); \end{verbatim}}
+\item<1->{\scriptsize\begin{verbatim} rectangle w (origin(), extents());\end{verbatim}}
+
+\note{NOTE: rectangle, origin, extents all types!}
+
+\item<1->{\scriptsize\begin{verbatim} int i[] = { 1, 2, 3, 4 };  \end{verbatim}}
+\item<1->{\scriptsize\begin{verbatim} vector<int> v;  \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim} for(int i=1; i<=4; ++i)   \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}   v.push(back(i)); \end{verbatim}}
+\item<3->{\scriptsize\begin{verbatim} int i = 42;  \end{verbatim}}
+\item<4->{\scriptsize\begin{verbatim} draw_rect(rectangle(orig,ext));  \end{verbatim}}
+\end{itemize}
+
+\column{.5\textwidth}
+\begin{itemize}
+\item<2->{\scriptsize\begin{verbatim} complex<double> c {2,72, 3.14}; \end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim} rectangle w {origin(), extents()};\end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim} int         i { 1, 2, 3, 4 }; \end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim} vector<int> v { 1, 2, 3, 4 };  \end{verbatim}}
+\item[] <2->{\scriptsize\begin{verbatim} \end{verbatim}}
+\item[] <2->{\scriptsize\begin{verbatim} \end{verbatim}}
+\item<3->{\scriptsize\begin{verbatim} int i = {42}; // silly but ok\end{verbatim}}
+\item<4->{\scriptsize\begin{verbatim} draw_rect({orig,ext});  \end{verbatim}}
+\end{itemize}
+
+\end{columns}
+%\vskip 24pt
+%\uncover<5->{ \hfill \textcolor{purple} {Use } \hfill}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile,t]
+\frametitle{Uniform initialization and initializer lists}
+\center{ \textcolor{purple} {Use \{\} unless you have reason not to. }}
+\begin{itemize}
+\item int i = 42; // too simple and obvious to change
+\vskip 6pt
+\item Unless you need to construct with args that would be a valid initializer list: 
+\begin{verbatim}
+vector<int> v(100); // 100 ints
+vector<int> v{100}; // one element of value 100
+\end{verbatim}
+\vskip 6pt
+\item Unless there is ambiguity: (GCC bug 52522)
+\begin{verbatim}
+Matrix hC(const std::vector<Vector>& vectors);
+Matrix hC(const std::vector<Matrix>& matrices);
+Matrix a,b;
+
+hC({a,b});              // BOOM
+
+hC(vector<Matrix>{a,b}) // OK
+
+\end{verbatim}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile,t]
+\frametitle{Uniform initialization and initializer lists}
+
+\center{ \textcolor{purple} {Use \{\} unless you have reason not to. }}
+\vskip 12pt
+\begin{itemize}
+\item Unless you want to use auto
+\begin{verbatim}
+int n;
+auto w(n);    // int
+auto x = n;   // int
+auto y {n};   // std::initializer_list<int>
+\end{verbatim}
+\end{itemize}
+\end{frame}

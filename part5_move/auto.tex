@@ -1,0 +1,206 @@
+
+\subsection{auto}
+\lyxframeend{}
+
+%\lyxframe{auto} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 1
+\begin{frame}[fragile]
+\frametitle{auto: the compiler knows the type}
+
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+\begin{itemize}
+\item  <1->\begin{verbatim} map<int, string>::iterator i   \end{verbatim}
+\item[]<1->\begin{verbatim}      = m.begin()\end{verbatim}
+\item<1->\begin{verbatim} const Vector d = foo() \end{verbatim}
+\item<1->\begin{verbatim} singleton& s = singleton::instance() \end{verbatim}
+\item  <1->\begin{verbatim} binder2nd<greater> x   \end{verbatim}
+\item[]<1->\begin{verbatim}             = bind2nd(greater(),42) \end{verbatim}
+\end{itemize}
+}
+\column{.5\textwidth}
+{\scriptsize
+\begin{itemize}
+\item<2->\begin{verbatim} auto i = m.begin() \end{verbatim}
+\item[]<2->\begin{verbatim}  \end{verbatim}
+\item<2->\begin{verbatim} auto const d = foo() \end{verbatim}
+\item<2->\begin{verbatim} auto& s = singleton::instance() \end{verbatim}
+\item<2->\begin{verbatim} auto x = bind2nd(greater(),42) \end{verbatim}
+\item<3->\begin{verbatim} auto x = [](int i){return i > 42;} \end{verbatim}
+\end{itemize}
+}
+\end{columns}
+\vskip 24pt
+\uncover<4->{ \hfill \textcolor{purple} {auto: just do it} \hfill}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 2
+\begin{frame}[fragile]
+\frametitle{When \emph{must} you use auto?}
+
+\begin{itemize} %1
+\item Unutterable types:
+  \begin{itemize} %2
+    \item Lambdas: what is the type of {\scriptsize\texttt{  [](int i)\{return i > 42;\}}} ?
+    \item \emph{Why would you do that?}  E.G., to
+      be consistent with ordering:
+{\scriptsize
+\begin{verbatim} 
+auto my_order = [](int i, int j){return i > j;}
+set<int,       my_order> set_ordered_my_way;
+map<int, char, my_order> map_ordered_the_same_way
+\end{verbatim}
+}
+  
+  \end{itemize} %2
+\vskip 12pt
+\item Implementation-defined types: there are a few here and there.
+
+\end{itemize} %1
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 2
+\begin{frame}[fragile]
+\frametitle{When \emph{can't} you use auto?}
+
+\begin{itemize} %1
+\item When you want an explicit type conversion:
+{\scriptsize
+\begin{verbatim}
+int foo(); 
+long i = foo(); 
+\end{verbatim}
+}
+\vskip 6pt
+%  \end{itemize} %2
+
+\item When you want polymorphism:
+{\scriptsize
+\begin{verbatim}
+class Base {};    
+class Derived : public Base {};
+Derived* derivedFactory();
+Base* my_ptr = derivedFactory();
+\end{verbatim} }     
+\vskip 6pt
+\item When you don't want an ephemeral / proxy type.
+{\scriptsize 
+\begin{verbatim}
+auto m = downcastPtr(base_ptr);
+auto p = _1 = 1; // boost::lambda;
+auto m = Eigen::Matrix<..> * Eigen::Matrix<..>;
+auto x = { 42 };
+\end{verbatim}
+}     
+
+%\end{itemize} %2
+
+\end{itemize} %1
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 4
+\begin{frame}[fragile]
+\frametitle{When \emph{should} you use auto?}
+
+\center{ \textcolor{purple} {Everywhere you can.} }
+
+(note: interface change robustness)
+\pause
+
+\center{ \textcolor{purple} {(unless it's trivial?)} }
+\center{ \textcolor{purple} {(unless it's confusing?)} }
+
+\pause
+
+\begin{itemize}
+\item 
+\begin{verbatim} auto pi = 3.14 ; // double 
+\end{verbatim} 
+\item 
+\begin{verbatim} auto pi = 3.14L; // long double 
+\end{verbatim} 
+\item 
+\begin{verbatim} auto pi = 3.14l; // long int!
+\end{verbatim} 
+\end{itemize}
+
+
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{\texttt{decltype}: the other side of the coin}
+\texttt{decltype(expr)} computes the type of \texttt{expr} at compile time; \texttt{expr} is
+\emph{not} evaluated.
+{\scriptsize
+\begin{verbatim}
+int i;         decltype(i)     // int
+double j;      decltype(i+j)   // double
+int&& foo();   decltype(foo()) // int&&
+\end{verbatim}}
+Mainly used for type computations in templates:
+{\scriptsize
+\begin{verbatim}
+template<class C> struct Foo {  typedef decltype( C().begin() ) iter_t; };
+
+typedef set<int> Set;
+
+Foo<Set>::iter_t         // Set::iterator
+Foo<const Set>::iter_t   // Set::const_iterator
+
+\end{verbatim}}
+
+\center{ \textcolor{purple} {Needed when you need a type for something
+that is not a variable, like return types or typedefs.} }
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%
+\begin{frame}[fragile]
+\frametitle{New ``suffix'' function declaration syntax (`auto' functions)}
+\begin{itemize}
+\item For library writers, probably not seen in everyday use:
+{\scriptsize
+\begin{verbatim}
+int  foo (double d);        // normal function
+auto foo (double d) -> int; // the same thing
+\end{verbatim}}
+\vskip 6pt
+\item Solves a problem for template functions: what type to return?
+{\scriptsize
+\begin{verbatim}
+template<class T, class U>     // The old way:
+??? mult(T const& t, U const& u)
+    { return t * u; }
+\end{verbatim}}
+\vskip 6pt
+
+\item The compiler knows what type to return, but we can't express
+  that with the old syntax.
+{\scriptsize
+\begin{verbatim}
+template<class T, class U>     // The new way:
+auto add(T const& t, U const& u) -> decltype(t+u)
+    { return t + u; }
+\end{verbatim}}
+\vskip 6pt
+(Why can't we put the decltype up front?  Because \texttt{t} and
+\texttt{u} aren't in scope yet!)
+\end{itemize}
+\end{frame}
+

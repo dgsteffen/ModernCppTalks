@@ -1,0 +1,92 @@
+\lyxframeend{}\subsection[\CC 11]{{\CC 11}, and why we need this talk}
+
+
+\begin{frame}[fragile,t]
+\frametitle{\CC\ Standards}
+\begin{description}
+\item[1985]: First Commerical Release, T\CC~PL, 1st Ed
+\item[1991]: T\CC~PL, 2nd Ed, added templates and exceptions
+\item[1997]: T\CC~PL, 3rd Ed, introduced ISO standard, added STL
+\item[1998]: ISO \CC Standard (``\CC 98'')
+\item[2001]: \textcolor{magenta}{GCC 2.95.3} (Final 2.95 release)
+\item[2003]: \CC 03 (``bug fix'' ISO Standard)\par
+\item[2007]: TR1 (library additions): shared\_ptr, hash tables
+\item[2011]: \CC 11, major revisions (what we're talking about today)
+\item\ \  \textcolor{magenta}{GCC 4.3.6} (Initial release 2008)
+\item[2013]: Complete \CC11 implementations (GCC 4.8, CLANG 3.2)
+\item[2014]: \CC 14 (awaiting formal acceptance)  ``Bug fix'' to \CC11
+\item[2017]: \CC17 (expected) will add concepts, modules, ???
+\end{description}
+\begin{itemize}
+\item Some \CC 11 features started appearing in GCC 4.3.
+\end{itemize}
+\end{frame}
+
+
+\lyxframeend{}\lyxframe{\CC11 : Major Changes}
+
+
+\begin{itemize}
+
+  \item \textquotedblleft{}\CC11 feels like a new language.\textquotedblright{} --- Bjarne Stroustrup
+    \pause{}
+
+  \item \textasciitilde{}10 features pervasively change \CC\ coding
+    syle, idioms, and guidance. {}``We broke every single book on the
+    planet and we broke every single programmer on the planet.'' ---
+    Herb Sutter
+
+    \pause{}
+
+  \item Where are the new books?
+
+    \pause{}
+    \begin{itemize}
+    \item \noun{What:} T\CC~PL 4th Ed (Stroustrup) now available
+      \pause{}
+      
+    \item \noun{Why and How}: Style (Meyers) -- ``Effective Modern
+      C++'',  October 2014.
+      \pause{}
+      
+    \item \noun{Thou Shalt}: \CC\ Coding Standards -- 2015?
+      
+      
+      \pause{}
+      
+    \item The whole community is learning right now, the books don't
+      exist yet, so we need to write our own.
+    \end{itemize}
+\end{itemize}
+
+\lyxframeend{}
+
+
+
+\begin{frame}[fragile]
+\frametitle{\CC11 References}
+\framesubtitle{E.G., where Dave stole all this material from}
+
+\begin{itemize}
+\item {\bf The} \CC\ Web Page: {\url{http://isocpp.org}}.  Has
+      links to the actual standard document, blogs, etc.
+      \begin{itemize}
+      \item The FAQ at {\footnotesize \url{https://isocpp.org/faq}} has a section devoted to \CC11 features.
+      \end{itemize}
+\item GoingNative12 and 13: a bunch of \emph{really} good
+      talks. {\footnotesize \url{http://herbsutter.com/2012/02/08/going-native-sessions-online/}} and
+      {\footnotesize \url{http://channel9.msdn.com/Events/GoingNative/2013}}
+\item Stroustrup's home page and FAQ. {\footnotesize \url{http://www2.research.att.com/~bs}}
+\item Herb Sutter's Blog and GOTW {\footnotesize \url{http://herbsutter.com/}}
+\item C++Next, particularly Dave Abrahams' discusson of move
+semantics: {\footnotesize \url{http://web.archive.org/web/20140113221447/http://cpp-next.com/archive/2009/08/want-speed-pass-by-value/}}
+
+
+\item GCC \CC11 support: {\footnotesize \url{http://gcc.gnu.org/projects/cxx0x.html}}
+
+
+\end{itemize}
+
+
+\end{frame}
+

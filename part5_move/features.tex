@@ -1,0 +1,304 @@
+
+\lyxframeend{}\subsection[New Features]{New Features In \CC 11}
+
+\begin{frame}[fragile]
+\frametitle{New Features}
+
+\begin{columns}[t]
+
+\column{.3\textwidth}
+{\scriptsize
+C99 features
+
+Inline namespace
+
+\_\_cplusplus
+
+alignments
+
+atomic operations
+
+auto
+
+control of defaults: default \& delete
+
+control of defaults: move \& copy
+
+decltype
+
+delegating constructors
+
+explicit conversion operators
+
+extended integer types
+
+extern templates
+
+lambdas
+
+null pointer (nullptr)
+
+rvalue references / move ops
+
+}
+\column{.5\textwidth}
+{\scriptsize
+attributes: {[[carries\_dependency]]}, [[noreturn]]
+
+Dynamic Initialization and Destruction with Concurrency
+
+Uniform initialization syntax and semantics
+
+constant expressions (constexpr)
+
+copying and rethrowing exceptions
+
+enum class (scoped and strongly typed enums)
+
+exception propagation (preventing it; noexcept)
+
+in-class member initializers
+
+inherited constructors
+
+initializer lists (uniform and general initialization)
+
+local classes as template arguments
+
+long long integers (at least 64 bits)
+
+narrowing (how to prevent it)
+
+override controls: final, override
+
+static (compile-time) assertions (static\_assert)
+
+suffix return type syntax
+
+thread-local storage (thread\_local)
+
+Default template args for function templates
+
+}
+
+\column{.2\textwidth}
+{\scriptsize
+PODs (generalized)
+
+Simple SFINAE rule
+
+memory model
+
+range-for statement
+
+raw string literals
+
+right-angle brackets
+
+template alias
+
+unicode characters
+
+unions (generalized)
+
+user-defined literals
+
+variadic templates 
+
+\vskip 12pt
+
+smart pointers
+
+}
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setlength\fboxsep{0pt}
+\newcommand{\hlt}[1]{\colorbox{TerumoGreen}{{#1}}}
+
+\begin{frame}[fragile]
+\frametitle{New Features {\textcolor{TerumoOrange}{supported by GCC 4.3}}}
+
+\begin{columns}[t]
+
+\column{.3\textwidth}
+{\scriptsize
+C99 features
+
+Inline namespace
+
+\_\_cplusplus
+
+alignments
+
+atomic operations
+
+auto
+
+control of defaults: default \& delete
+
+control of defaults: move \& copy
+
+\hlt{decltype}
+
+delegating constructors
+
+explicit conversion operators
+
+extended integer types
+
+\hlt{extern templates}
+
+lambdas
+
+null pointer (nullptr)
+
+\hlt{rvalue references / move ops}
+
+}
+\column{.5\textwidth}
+{\scriptsize
+attributes: {[[carries\_dependency]]}, [[noreturn]]
+
+Dynamic Initialization and Destruction with Concurrency
+
+Uniform initialization syntax and semantics
+
+constant expressions (constexpr)
+
+copying and rethrowing exceptions
+
+enum class (scoped and strongly typed enums)
+
+exception propagation (preventing it; noexcept)
+
+in-class member initializers
+
+inherited constructors
+
+initializer lists (uniform and general initialization)
+
+local classes as template arguments
+
+long long integers (at least 64 bits)
+
+narrowing (how to prevent it)
+
+override controls: final, override
+
+\hlt{static (compile-time) assertions (static\_assert)}
+
+suffix return type syntax
+
+thread-local storage (thread\_local)
+
+\hlt{Default template args for function templates}
+
+}
+
+\column{.2\textwidth}
+{\scriptsize
+PODs (generalized)
+
+Simple SFINAE rule
+
+memory model
+
+range-for statement
+
+raw string literals
+
+\hlt{right-angle brackets}
+
+template alias
+
+unicode characters
+
+unions (generalized)
+
+user-defined literals
+
+\hlt{variadic templates}
+
+\vskip 12pt
+
+\hlt{smart pointers}
+
+}
+\end{columns}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection[Features in GCC 4.3]{\CC11 Features in GCC 4.3}\lyxframeend{}
+
+\begin{frame}[fragile,t]
+\frametitle{\CC11 Features in GCC 4.3 (part 1)}
+
+\begin{itemize}
+\item\hlt{decltype, extern templates, default template args,
+compile-time assertions} : mostly
+for templates and compile-time programming, which we don't do much of.
+
+\vskip 12pt
+
+\item\hlt{variadic templates}: templates with arbitrary number of parameters.
+{\scriptsize
+\begin{verbatim}
+template<typename... T> class Tuple { /* implementation */ };
+
+Tuple<int, char, Widget>    a (1, 'c', my_widget);
+
+Tuple<bool, vector<string>> b (false, names);
+\end{verbatim}
+}
+Mind blowing.  Will see limited use in our new memory pool to increase
+readability.  See Andrei Alexandrescu's excellent talk at
+{\small \url{http://channel9.msdn.com/Events/GoingNative/GoingNative-2012/Variadic-Templates-are-Funadic}}
+(and you can even watch it at work!)
+
+
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{\CC11Features in GCC 4.3 (part 2)}
+
+\begin{itemize}
+
+\item\hlt{right-angle brackets} :
+{\scriptsize
+\begin{verbatim}
+typedef std::vector<std::vector<int> > Table;  // #1, OK
+typedef std::vector<std::vector<bool>> Flags;  // #2, Error
+\end{verbatim}
+}
+which is ``a minor, but persisting, annoying, and somewhat
+embarrassing problem'' (quoted from the proposal). \#2 is now OK.
+
+\vskip 12pt
+
+\item\hlt{smart pointers} : shared\_ptr, weak\_ptr, and unique\_ptr added to
+standard library, use of RAII now idiomatic; this is a whole talk in
+itself (Part 2).
+
+\vskip 12pt
+\item\hlt{rvalue references / move ops} : what the rest of this talk
+is about.
+
+
+
+\end{itemize}
+
+\end{frame}

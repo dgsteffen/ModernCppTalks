@@ -1,0 +1,773 @@
+
+\lyxframeend{}\section[The Solution]{Move Semantics are the Answer}
+
+\subsection[Move Semantics]{Move Semantics}\lyxframeend{}
+
+%\subsection[Rvalues]{Rvalues Only Live Once}\lyxframeend{}
+
+\begin{frame}[fragile]
+\frametitle{Enter Move Semantics}
+
+\begin{itemize}[<+->]
+\item ``Expensive Copy'' almost always means ``holds expensive resources''.
+
+      \begin{itemize}[<+->]
+      \item Copying floats, ints? Invisible
+      \item Copying big structs? Easy.  (On stack, memcpy, etc)
+      \item \texttt{vector<vector<string>{}>}  ...  memory allocation hell
+      \item shared resources -- mutexes (expensive), resource contention
+      \item sockets, files, streams -- does copy even make sense?
+      \end{itemize}
+
+\vskip 6pt
+\pause
+
+\item In all those problem cases, we don't really want a copy: \emph{we're never going to
+  use the original again!}
+\begin{verbatim}
+Vector C =    A + B  + D  + Foo(E+F);
+\end{verbatim}
+
+
+\vskip 6pt
+\pause
+
+\item ``Move Semantics'' -- don't copy the data, copy the handle.
+
+    \begin{itemize}[<+->]
+    \item Move a \texttt{vector<blah>} -- shallow copy (just copy the pointer)
+    \item Shared resources, sockets, files, streams -- transfer the
+    resource handle.
+
+    \end{itemize}
+
+
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Moved-from Semantics}
+
+\begin{itemize}[<+->]
+\item Isn't that a disaster waiting to happen?
+
+    \begin{itemize}
+    \item \Emph{We don't care, we didn't want the original anyway.}
+    \item \Emph{We \emph{can't} care, the original is a temporary!}
+    \item The only thing that can happen to them
+    once we're done is destruction. They're gonna die anyway, so...
+    \item Rvalues are organ donors. \Emph{We can steal their guts!}
+    \end{itemize}
+
+\vskip 6pt
+
+\item  What is the state of a moved-from object?
+
+    \begin{itemize}
+    \item Anything it wants; moved-from objects are in an \emph{inconsistent} state.
+    \item The only valid operation is destruction; so they need only be \emph{destructable}.
+    \item (A detail: it's good for them to be \emph{assignable} as well.)
+    \end{itemize}
+
+\vskip 6pt
+
+\item So, how do we know when we can do this to an object?  How do we
+    write code for move semantics?
+
+\end{itemize}
+\end{frame}
+
+
+
+\subsection[Definitions]{Definitions and Terminology}\lyxframeend{}
+
+\begin{frame}[fragile]
+\frametitle{Rvalues}
+
+``We aren't going to use this object again'' has a
+name: \textcolor{magenta} {rvalue}.
+
+
+\pause
+{
+\vskip 6pt
+
+\begin{itemize}[<+->]
+
+\item {\bf lvalue}: can appear on the left side of an assignment
+\begin{itemize}     
+  \item Has a name and an address
+  \item EG: variables (note: const objects are still lvalues!)
+  \item Reference spelled ``\&'' as usual.
+\end{itemize}
+
+\vskip 6pt
+
+\item {\bf rvalues} : can \emph{only} appear on the right side of an assignment
+  \begin{itemize}
+  \item No name, no accessable address
+  \item EG: unnamed temporaries (might be in a register, or other
+  compiler-generated no-man's-land)
+  \item Rvalue references, spelled \textcolor{magenta}{\&\&} (``ref ref'') are the heart of move semantics.
+  \end{itemize}
+
+\vskip 6pt
+
+\item Terminology inherited from C, so it's slighly wonky, but
+  everyone is used to it by now.
+
+\end{itemize}
+}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Lvalues and Refs Thereunto}
+\framesubtitle{Things you already know}
+{\scriptsize
+\begin{verbatim}
+int f();      // Generator function
+
+int i,j,k;    // Lvalues: objects accessable via identifiers
+int* b;       // Lvalue : object accessable via identifier 'b'
+b = &i;       // lvalues: object 'i' has accessable address; store in 'b'
+int& c = i;   // Lval ref : object 'i' has alternate name 'c',
+              //            and indirect handle 'b'
+int** d = &b; // Lvalue  : object 'd' holds pointer to 'b', etc.
+
+i+j+k;         // Rvalue: expression, has no name or address
+f()+j;         // Rvalue: ditto for function return value.  In both
+               // cases, unnamed temps exist only long enough to 
+               // participate in enclosing expression.
+
+int q  = i+j;  // q is lvalue, initialized (copied?) from rvalue
+
+int z  = f();  // ditto
+
+int& r = f();  // error; can't bind rvalue to nonconst reference
+
+const int& s = f() // OK - can bind rvalue to a const ref.
+\end{verbatim}
+}
+\vskip 12pt
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Rvalues and Refs Thereunto}
+\framesubtitle{New!}
+
+A reference to an rvalue is spelled ``\&\&'':
+{\scriptsize
+\begin{verbatim}
+int f();     // Generator function
+int i,j,k;   // Lvalues: objects accessable via identifiers
+
+
+int& r1 = i;    // OK, lvalue ref
+int& r2 = f();  // ERROR, f() is rvalue
+
+
+int&& rr1 = f();  // OK, rvalue ref
+
+int&& rr2 = i  ;  // ERROR, var is lvalue
+
+int&& rr3 = true  // OK, ref to temp holding
+                  // implicit conversion from bool
+
+string&& ss = "aa"; // Ditto; ref to temp holding
+                    // conversion from const char*
+
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Binding Rules}
+
+\newcommand{\ccheck}{{\textcolor{magenta}{\checkmark}}}
+
+\center{
+
+\begin{tabular}{cr|c|c|c|c|}
+%\cline{3-6}
+\multicolumn{2}{c}{} &  \multicolumn{4}{c}{\bf{Object Type}}\\ 
+& \multicolumn{1}{c}{}& \multicolumn{1}{c}{ const Lvalue}
+& \multicolumn{1}{c}{Lvalue} & \multicolumn{1}{c}{Rvalue}
+& \multicolumn{1}{c}{const Rvalue} \\ \cline{3-6} 
+\multirow{4}{*}{\begin{sideways}\bf{Ref Type}\end{sideways}} & const \& & \ccheck & \ccheck & \ccheck & \ccheck \\ \cline{3-6}
+ & \& & & \ccheck & & \\ \cline{3-6}
+ & \&\& & &  & \ccheck & \\ \cline{3-6}
+ & const \&\& & & & & \ccheck \\ \cline{3-6}
+
+
+\end{tabular}
+
+\vskip 12pt
+
+\begin{itemize}[<+->]
+\item Everything  binds to \texttt{const \&}
+\item All the rest of the binding rules are \emph{minimal}
+\item \texttt{const \&\&} is effectively useless
+\end{itemize}
+
+}
+
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Reference Collapse}
+
+Language syntax doesn't allow \texttt{int\&\& \& a}, but such
+things can result from typedefs, template deduction, etc.
+
+{\scriptsize
+\begin{verbatim}
+
+typedef int& IR;  typedef int&& IRR;
+
+// reference collapse
+
+IRR && w ; // "int && && " --> int&&
+IRR &  x ; // "int && &  " --> int&
+IR  && y ; // "int & &&  " --> int&
+IR  &  z ; // "int & &   " --> int&
+\end{verbatim}
+}
+
+Nothing we can do type fiddling can turn an lvalue into an rvalue by
+accident.  (Intentionally, yes, but no \emph{accidental} organ donors.)
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection[Coding]{Coding Move Semantics}\lyxframeend{}
+
+
+\begin{frame}[fragile]
+\frametitle{Coding Movable Types}
+
+The canonical form for a movable type:
+
+{\scriptsize
+\begin{verbatim}
+class Vector { 
+
+private:
+  float* data;
+  int    len;
+
+public:
+  Vector( const Vector&  lvalue );  // copy ctor, deep copy
+  Vector(       Vector&& rvalue );  // move ctor, steal
+
+  Vector& operator=(const Vector&  lval);   // copy assignment
+  Vector& operator=(      Vector&& rval );  // move assignment
+};
+\end{verbatim}
+}
+\pause
+\begin{itemize}[<+->]
+\item Everything can bind to a const lvalue ref, but
+\item Only rvalues can bind to \&\&, and this is a better fit for overload resolution.
+\item Therefore, functions that take \&\& know that the referent is
+an organ donor.
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Moving Vectors, How Does It Work}
+{\scriptsize
+\begin{verbatim}
+Vector(const Vector& v) : data(new float[v.len]), len(v.len) { memcpy(...); }
+
+Vector(Vector&& rv)     : data(rv.data), len(rv.len) { rv.data = NULL; }    
+                                                  // note: rv inconsistent!
+
+Vector& operator=(const Vector& v   ) { 
+  delete[] data;   
+  data = new float[v.len]; 
+  len = v.len;  
+  memcpy(...);                        }
+
+Vector& operator=(      Vector&& rv ) {
+    len  = rv.len;     
+    swap(data, rv.data)               }  // rv is inconsistent, rv.len is wrong!
+
+  ~Vector() { delete[] data; }
+};
+
+Vector C =    A + B  + D  + Foo(E+F);
+\end{verbatim}
+}
+
+Move operations leave \texttt{rv} in a state that is \emph{inconsistent} but
+\emph{destructable}.
+\vfill
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile]
+\frametitle{Coding move assignments}
+\begin{itemize}[<+->]
+\item Swap resources. Cleaner, faster?
+{\scriptsize
+\begin{verbatim}
+
+  Vector& Vector::operator=(Vector&& rref) {
+    swap(data, rref.data);  len = rref.len;
+  }
+
+\end{verbatim}
+}
+\item Delete the unneeded resources directly; deterministic, necessary?
+{\scriptsize
+\begin{verbatim}
+
+  Vector& Vector::operator=(Vector&& rref) {
+    delete[] data;
+    data = rref.data;
+    rref.data = NULL;
+  }
+\end{verbatim}
+}
+This is absolutely necessary for time-constrained resources like
+mutexes.
+
+\item Consensus seems to be leaning towards immediate release, but the
+debate continues.
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% \begin{frame}[fragile]
+%% \frametitle{Coding Move Assignments II: Breaking News}
+
+%% Breaking news: Scott Meyers' blog: ``implementing move in terms of swap is
+%% often a pessimization, and has other unpleasant implications.''
+%% Consider a class that holds resources through a pointer.
+
+%% \begin{itemize}
+%% \item \texttt{swap} is three pointer assignments; no swap is only
+%% two.  If we're doing this for performance reasons...
+%% \item \texttt{swap} means ``my'' resources are cleaned up... later.
+%% The work is the same, but the behavior can be very different.
+%%     \begin{itemize}
+%%     \item Consider an object that with a handle to 51\% of available
+%%     RAM... how long can we wait?
+%%     \end{itemize}
+%% \item The issue is, maybe, still up in the air, but coding move as
+%%     swap should probably \emph{not} be the default.
+%%     \begin{itemize}
+%%     \item Counter argument: remove element $n$ from a sequence by
+%%     moving $n+1$ down, then $n+2$ down, etc... ``move by swap'' only
+%%     runs one dtor.
+%%     \end{itemize}
+%% \end{itemize}
+%% So, the debate still continues (but the issues become clearer).
+%% \end{frame}
+
+
+% http://accu.org/content/conf2014/Howard_Hinnant_Accu_2014.pdf slides
+% 45-53
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{std::move}
+How to force a move from something that isn't an rvalue already:
+{\scriptsize
+\begin{verbatim}
+{
+
+  Vector V;
+
+  ...
+
+  Vector Q = std::move(V);
+
+  // don't use V again!
+
+  cout << V.len;  // undefined behavior!
+
+}
+\end{verbatim}
+}
+
+This tells the compiler that we are done with an object, and therefore
+it can move from it, but we'd better be right.  Lying to the compiler
+is a \emph{really bad idea}.
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Writing Functions I}
+\begin{itemize}
+\item Return values?  As usual.
+{\scriptsize
+\begin{verbatim}
+
+Foo   bar() { Foo f; ... return f; }      // Do This
+
+Foo&& bar() { Foo f; ... return f; }      // Not This
+
+Foo   bar() { Foo f;                   // Or this; the
+              return std::move(f); }   // move is implied
+
+\end{verbatim}
+}
+The return statement is the last time 'f' can be referenced,
+so it's kind of an honorary rvalue.
+
+\texttt{return std::move(var)} is implied when returning a local variable.
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile]
+\frametitle{Writing Functions II}
+\begin{itemize}
+\item Pass by value when you want a copy.
+{\scriptsize
+\begin{verbatim}
+void foo ( const bar& b) {  // not this
+  bar local = b;
+  // ... modify local
+}
+
+void foo ( bar local ) {        // but this
+ // ... modify local 
+}
+\end{verbatim}
+}
+\pause
+\begin{center}
+\Emph{Don't force the compiler to make a copy if it can move or elide.}
+\end{center}
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Writing Functions III: Binding}
+{\scriptsize
+\begin{verbatim}
+A Foo (const A& a, A& b, A c, A&& d)
+{
+  // a: lvalue,    const-ref to external l-or-rvalue
+  // b: lvalue,    ref to external lvalue (not rvalue!)
+  // c: lvalue,    local copy
+  // d: lvalue(!), ref to external rvalue
+
+  A e // lvalue, local variable
+
+  A&& r = bar(a,b); // lvalue(!), local ref bound to rvalue
+                    // semantically an lvalue
+                    // but it's an organ donor
+
+  // Return value options: choose one:
+
+  return e;  // e is local, move enabled
+
+  return r;  // same
+  
+  return d;            // d not local -- copy!
+  return std::move(d); // move enabled
+
+  return a;            // copy
+  return std::move(a); // BOOM!
+}
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Wait, What?}
+\begin{itemize}
+\item \Emph{An rvalue reference is not an rvalue!}  Consider:
+{\scriptsize
+\begin{verbatim}
+void foo (const Widget& lv ); // makes a copy of its arg
+void foo (Widget&&      rv ); // destructive, moves from argument
+\end{verbatim} }
+\pause
+\vskip 6pt
+\item Now, I write this:
+{\scriptsize
+\begin{verbatim}
+void baz(Widget&& R) 
+{
+  foo(R);   // Is R moved from here?
+  foo(R);   // If so, Boom!
+}
+\end{verbatim}
+}
+\vskip 6pt
+\pause
+\item Is this code reasonable?  Yes.
+\pause
+\item Is it correct? Yes
+\pause
+\item Why?  Because \Emph{R has a name, it can be
+referred to in more than once place, it's an lvalue} and is
+therefore \Emph{not} moved from.
+
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Rvalue References are Lvalues!}
+So, consider:
+{\scriptsize
+\begin{verbatim}
+void foo (Widget     lv ); // takes by value, gets a copy
+void foo (Widget&&   rv ); // destructive, moves from argument
+
+void bar (Widget&&   rv ); // also destructive, no overloads
+
+void baz(Widget&& R) 
+{
+  foo(R);            // Is R moved from here? NO!
+
+  ...                // It's safe to use R in here
+
+  bar(R);            // Won't compile!
+
+  bar(std::move(R)); // OK, explicit organ donor
+
+  ...  // Don't use R here, but you knew that!
+}
+\end{verbatim}
+}
+
+Repeat to yourself: \Emph{Rvalue References are Lvalues!} They have
+names, can be referred to more than once, and you want it this way.
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Writing Functions III Reprise}
+\framesubtitle{Take a second look at that}
+{\scriptsize
+\begin{verbatim}
+A Foo (const A& a, A& b, A c, A&& d)
+{
+  // a: lvalue,    const-ref to external l-or-rvalue
+  // b: lvalue,    ref to external lvalue (not rvalue!)
+  // c: lvalue,    local copy
+  // d: lvalue(!), ref to external rvalue
+
+  A e // lvalue, local variable
+
+  A&& r = bar(a,b); // lvalue(!), local ref bound to rvalue
+                    // semantically an lvalue
+                    // but it's an organ donor
+
+  // Return value options: choose one:
+
+  return e;  // e is local, move enabled
+
+  return r;  // same
+  
+  return d;            // d not local -- copy!
+  return std::move(d); // move enabled
+
+  return a;            // copy
+  return std::move(a); // BOOM!
+}
+\end{verbatim}
+}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Writing Functions IV: Returning Values}
+{\scriptsize
+\begin{verbatim}
+Vector operator+(Vector const& x, Vector const& y) // #1
+{ Vector temp = x; temp += y; return temp; }
+ 
+Vector operator+(Vector&& temp, const Vector& y)   // #2
+{ temp += y; return std::move(temp); }
+ 
+Vector operator+(const Vector& x, Vector&& temp)   // #3
+{ temp += x; return std::move(temp); }
+ 
+Vector operator+(Vector&& temp, Vector&& y)        // #4
+{ temp += y; return std::move(temp); }
+\end{verbatim}
+}
+\begin{itemize}
+\item \#1 : Move enabled, because \texttt{temp} is an automatic
+  variable: \Emph{provably} never used again!
+\item \#2 -- \#4: Use \texttt{std::move} because \texttt{temp} is \emph{not}
+  an automatic variable
+
+\item Again: a named rvalue reference is an lvalue! (It's not unnamed any
+  more!) Inside \#2, \texttt{temp} is an lvalue, the compiler isn't
+  allowed to move from it without our explicit permission.
+\end{itemize}
+
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Aggregating move-enabled classes}
+{\scriptsize
+\begin{verbatim}
+struct Widget {  
+
+ std::string s;
+
+  Widget(Widget&& rhs)
+    : s(rhs.s)             // Incorrect!
+   {...}
+
+  Widget(Widget&& rhs)
+    : s(std::move(rhs.s))  // Correct!
+   {...}
+\end{verbatim}
+}
+\begin{itemize}
+\item Remember, binding an rvalue to a name produces an lvalue (it
+  has a name!); it's just an lvalue that you can cannibalize.
+\end{itemize}
+
+\center{\Emph{No accidental organ donors!}}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Library Changes}
+The Standard Library has a variety of changes involving move semantics
+and perfect forwarding.  In particular, containers now
+have \texttt{emplace} operations.
+{\scriptsize
+\begin{verbatim}
+iterator insert (iterator pos, const T& v);   // basic insert via copy
+
+// Equivalent operation, but construct the element in place
+template<class... Args> iterator emplace (iterator pos, Args&&... a); 
+\end{verbatim}}
+\pause
+{\scriptsize \begin{verbatim}
+std::vector<Widget> v;
+Widget w(a, b, c);       // make a Widget with some arguments
+
+v.insert(pos, w);        // pos is iterator; insert copy of w
+v.emplace(pos, a, b, c); // insert a Widget constructed in place -- no copy!
+
+v.push_back(w);          // add a copy of w to the end
+v.emplace_back(a,b,c);   // create new Widget at the end, but...
+
+v.push_back(a,b,c);      // GCC doesn't implement the standard here --
+                         // it just overloads.
+\end{verbatim}
+}
+\pause
+\begin{center}
+Know that containers (now) have emplace operations.
+\end{center}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Final Comments}
+\begin{itemize}
+
+\item Can something be movable but not copyable?
+\pause
+      \begin{itemize}
+      \item Absolutely.  Example: the standard I/O streams are movable but not
+      copyable.
+      \item Canonical example: \texttt{unique\_ptr}.  Replaces \texttt{auto\_ptr}, which
+      is broken, and had to be, because it takes move semantics to get
+      it right.
+      \item Standard containers can now store
+      movable-but-not-copyable objects, so \texttt{vector<ostream>} is now possible.
+      \end{itemize}
+
+\vskip 6pt
+\pause
+\item Standard containers are move-aware?
+\pause
+      \begin{itemize}
+      \item Yes, and this can improve performance \emph{without any
+      code changes}.
+      \end{itemize}
+
+\vskip 6pt
+
+%% \item Can templates detect movable types at compile time?
+%%       \begin{itemize}
+%%       \item Yes, but (probably) only with \CC11 template facilities,
+%%       and even then it's rough.  \CC17 concepts will help.
+%%       \end{itemize}
+\pause
+\item Further Reading:
+      \begin{itemize}
+      \item Thomas Becker: {\tiny  \url{http://thbecker.net/articles/rvalue_references/section_01.html}}
+
+      \item  Scott Meyer's blog:
+      {\tiny \url{http://scottmeyers.blogspot.com/2014/06/the-drawbacks-of-implementing-move.html}}
+      \item \mbox{Scott Meyers on Universal References:}
+      {\tiny \url{http://channel9.msdn.com/Shows/Going+Deep/Cpp-and-Beyond-2012-Scott-Meyers-Universal-References-in-Cpp11}}
+      \end{itemize}
+
+\end{itemize}
+
+\end{frame}
+

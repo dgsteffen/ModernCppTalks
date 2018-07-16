@@ -1,0 +1,223 @@
+\lyxframeend{}\section[The Problem]{If Move Semantics are the
+Answer, What's the Question?}
+
+%\subsection[Problem == Copies]{Death, Taxes, and Copies}\lyxframeend{}
+\subsection[Problem == Copies]{Death, Taxes, and...}\lyxframeend{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 1
+
+\begin{frame}[fragile,t]
+\frametitle{Death, Taxes, and Copies}
+\framesubtitle{Three things you can't avoid}
+
+\begin{itemize}[<+->]
+
+\item{\scriptsize
+\begin{verbatim}
+vector<string> get_names() {... return retval;} // generator fn
+vector<string> names = get_names();             // use generator
+\end{verbatim}
+}
+
+\item In principle, two copies of the vector, and a default constructor.
+
+\item If there are N strings in the vector, each copy could require as many
+as N+1 memory allocations and a whole slew of cache-unfriendly data
+accesses as the string contents are copied.
+
+
+\vskip 12pt
+\item Option 1: don't make a copy, don't ever change the result
+{\scriptsize
+\begin{verbatim}
+vector<string> const& names = get_names();
+\end{verbatim}
+}
+
+\vskip 12pt
+
+\item Option 2: commit to smart pointers and ownership transfer
+{\scriptsize
+\begin{verbatim}
+unique_ptr<vector<string>> get_names();
+\end{verbatim}
+}
+\vskip 12pt
+
+\item Option 3: FORTRAN-style ``out parameters''
+{\scriptsize
+\begin{verbatim}
+void get_names( vector<string>& m_names);
+\end{verbatim}
+}
+
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Copies Are Inevitable}
+{\scriptsize
+\begin{verbatim}
+class Vector {...};
+
+Vector operator+ (Vector const& X, Vector const& Y) {
+  Vector result(X);
+  return result += Y;
+}
+...
+Vector C =    A + B  + D  + Foo(E+F);
+   --->  = (((A + B) + D) + Foo(E+F));
+\end{verbatim}
+}
+
+\begin{itemize}[<+->]
+\item Five subexpressions means five unnamed temporaries, means five
+  copies, and then the assignment.
+\item Options 2 and 3 are not an option unless we give up the syntax.
+\item Option 1 doesn't help and may not be a viable option anyway.
+\end{itemize}
+
+\pause
+
+{ \hfill \textcolor{magenta} {Copies are the bane of
+    high-performance computing in C++.} \hfill}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Examples In Real Code}
+
+\begin{itemize}[<+->]
+
+\item Common Data Store (global data, with mutex locks)
+{\scriptsize
+\begin{verbatim}
+virtual dataType Get() const;
+virtual void     Get(dataType *item) const;  // Faster version.
+                                             // Better for large data items.
+\end{verbatim}
+}
+``Old'' (C-style) out parameter.  (One copy is mandatory, it's a shared
+resource, which is why we want to avoid any more.)
+\textcolor{magenta}{Rough syntax to use, and you have to remember it exists!}
+
+\vskip 12pt
+
+\item Old-style GUI, translate from UTF8 to ASCII
+{\scriptsize
+\begin{verbatim}
+void UTF8String::getAscii (string& destination) { ... }
+\end{verbatim}
+}
+Classic \CC-style out parameter.
+
+\vskip 12pt
+
+\end{itemize}
+\pause
+
+{ \textcolor{magenta} {Not just clumsy, but can also disable
+optimizations, as we shall soon see.}}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection[Compiler != Solution]{Compilers Offer A Partial Solution, Maybe}\lyxframeend{}
+
+
+\begin{frame}[fragile,t]
+\frametitle{Compilers aren't that stupid}
+
+{\textcolor{magenta}{Copy Elision \& Co. to the rescue...}}
+%\uncover<5>{\textcolor{magenta}{... maybe. Compilers can skip copy operations \emph{only if doing so has no observable effects}.}}
+
+\begin{itemize}
+\item<2-> All modern compilers make these the same (mandated in  \CC11):
+{\scriptsize
+\begin{verbatim}
+vector<string> names = get_names();
+vector<string> names(get_names);
+\end{verbatim}}
+
+\vskip 6pt
+
+\item<3->Return Value Optimization (RVO):{\scriptsize
+\begin{verbatim}
+vector<string> get_names() {
+  string twoB, not2B;
+  ...
+  return twoB + " or " + not2B; } 
+
+vector<string> my_names = get_names();
+\end{verbatim}}
+\vskip 6pt
+\item<4->''Named'' Return Value Optimization (NRVO):{\scriptsize
+\begin{verbatim}
+vector<string> get_names() {
+  vector<string> result; 
+  ... 
+  return result; } 
+
+vector<string> my_names = get_names();
+\end{verbatim}}
+
+\vskip 6pt
+
+
+\end{itemize}
+
+%% \onslide<4>{
+%% \textcolor{magenta}{... maybe. Compilers can skip copy operations \emph{only if doing so
+%%     has no observable effects}.}
+%% }
+
+\end{frame}
+
+\begin{frame}[fragile,t]
+\frametitle{... but compilers are limited}
+
+\textcolor{magenta}{Copy elision is fragile. %Compilers can skip copy
+                                %operations \emph{only if doing so has
+                                %no observable effects}
+}
+
+
+\begin{itemize}
+\item<1-> Copy elision not allowed if these have side effects:
+{\scriptsize
+\begin{verbatim}
+vector<string> names = get_names();
+vector<string> names(get_names);
+\end{verbatim}
+}
+
+\item<2-> NRVO / URVO happens, or not, on a compiler-by-compiler
+basis.
+\item<3-> URVO is common and fairly robust, but NRVO is easily disabled in compiler specific ways:
+{\scriptsize
+\begin{verbatim}
+Foo makefoo() {
+  Foo a, b;
+  ...
+  if (expr) return a;
+  return b;
+}
+\end{verbatim}
+}
+(This disables NRVO in GCC and probably most other compilers.)
+\end{itemize}
+
+\onslide<4>{
+\center{\textcolor{magenta}{Copy elision happens at the whim of the compiler, and
+  all you can do is hope.}}}
+\end{frame}
+
