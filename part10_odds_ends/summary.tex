@@ -1,0 +1,462 @@
+\subsection{\CC\ Standards}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Summary: \CC11}
+\begin{columns}[t]
+
+\column{.3\textwidth}
+{\scriptsize
+C99 features
+
+Inline namespace
+
+\_\_cplusplus
+
+alignments
+
+atomic operations
+
+auto
+
+default \& delete member fns
+
+default move \& copy
+
+decltype
+
+delegating constructors
+
+inherited constructors
+
+override controls: final, override
+
+explicit conversion operators
+
+extended integer types
+
+extern templates
+
+lambdas
+
+null pointer (nullptr)
+
+rvalue references / move ops
+
+}
+\column{.5\textwidth}
+{\scriptsize
+attributes: {[[carries\_dependency]]}, [[noreturn]]
+
+Dynamic Initialization/Destruction with Concurrency
+
+Uniform initialization syntax and semantics
+
+constant expressions (constexpr)
+
+copying and rethrowing exceptions
+
+enum class (scoped and strongly typed enums)
+
+exception propagation (preventing it; noexcept)
+
+in-class member initializers
+
+initializer lists (uniform and general initialization)
+
+local classes as template arguments
+
+long long integers (at least 64 bits)
+
+narrowing (how to prevent it)
+
+static (compile-time) assertions (static\_assert)
+
+suffix return type syntax
+
+thread-local storage (thread\_local)
+
+Default template args for function templates
+
+}
+
+\column{.2\textwidth}
+{\scriptsize
+PODs (generalized)
+
+Simple SFINAE rule
+
+memory model
+
+range-for statement
+
+raw string literals
+
+right-angle brackets
+
+template alias
+
+unicode characters
+
+unions (generalized)
+
+user-defined literals
+
+variadic templates
+
+\vskip 12pt
+
+smart pointers
+
+}
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Summary: \CC14}
+\begin{itemize}
+
+\item Binary literals
+
+\item Generalized return type deduction
+
+\item \texttt{decltype(auto)}
+
+\item Generalized lambda captures
+
+\item Generic lambdas
+
+\item Variable templates
+
+\item \Emph{Extended \texttt{constexpr}}
+
+\item \Emph{The \texttt{deprecated} attribute}
+
+\item Digit separators
+
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Summary: \CC17 (\Emph{!})}
+\begin{columns}[t]
+
+\column{.5\textwidth}
+{\scriptsize
+New auto rules for direct-list-initialization
+
+static\_assert with no message
+
+typename in a template template parameter
+
+Removing trigraphs
+
+Nested namespace definition
+
+Attributes for namespaces and enumerators
+
+u8 character literals
+
+Constant evaluation for all non-type template arguments
+
+Fold Expressions
+
+Unary fold expressions and empty parameter packs
+
+Remove Deprecated Use of the register Keyword
+
+Remove Deprecated operator++(bool)
+
+Removing Deprecated Exception Specifications from C++17
+
+Make exception specifications part of the type system
+
+Aggregate initialization of classes with base classes
+
+Lambda capture of *this
+
+Using attribute namespaces without repetition
+
+Dynamic memory allocation for over-aligned data
+
+\_\_has\_include in preprocessor conditionals
+
+Template argument deduction for class templates
+
+Non-type template parameters with auto type
+
+Guaranteed copy elision
+
+
+}
+\column{.5\textwidth}
+{\scriptsize
+New specification for inheriting constructors
+
+Direct-list-initialization of enumerations
+
+Stricter expression evaluation order
+
+constexpr lambda expressions
+
+Different begin and end types in range-based for
+
+Attributes fallthrough, nodiscard, maybe\_unused
+
+Ignore unknown attributes
+
+Pack expansions in using-declarations
+
+Decomposition declarations
+
+Hexadecimal floating-point literals
+
+init-statements for if and switch
+
+Inline variables
+
+DR: Matching of template template-arguments excludes compatible templates
+
+std::uncaught\_exceptions()
+
+constexpr if-statements
+
+
+\vskip 12pt
+\Emph{Partial support in GCC 6, full(?) in GCC 7}
+\url{https://gcc.gnu.org/projects/cxx-status.html#cxx1z}
+
+
+
+}
+
+\end{columns}
+
+
+\end{frame}
+
+
+\subsection{Advice}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice}
+\begin{itemize}[<+->]
+\item Almost Always Auto (but tell us how it works out)
+\item Suffix notation for return types: always use?
+{\scriptsize\begin{verbatim}
+int  foo (double d);        // normal function
+auto foo (double d) -> int; // the same thing
+\end{verbatim}
+}
+\item Uniform initialization with \{\}: use unless there's a reason not to
+  \begin{itemize}
+  \item int i = 42; // too simple and obvious to change
+  \item Unless you need to construct with args that would be a valid initializer list:
+\begin{verbatim}
+vector<int> v(100); // 100 ints
+vector<int> v{100}; // one element of value 100
+\end{verbatim}
+\end{itemize}
+\item Range-based for loops: prefer everywhere
+\item Prefer free-function begin/end, they're more adaptable
+\item nullptr: use everywhere (but watch out for bugs)
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice}
+\begin{itemize}[<+->]
+\item Delegating and inheriting constructors: use without reservation
+\item Virtual function controls (\texttt{override/final}):
+  recommended, but \texttt{final} frequently indicates design errors.
+\item Member function control (\texttt{delete/default} member
+  functions): recommended
+\item Explicit conversion operators:  use is probably mandatory
+\item In-class initializers: recommended
+\item Enum classes: recommended
+\item Declare everything \texttt{noexcept} if at all possible (it
+  should be the default).
+\item Make user-defined literals for classes where it's appropriate
+\item Prefer ``using'' rather than ``typedef'' since it's more general
+  (``using'' works with templates)
+\item Use raw string literals (more useful than you'd think)
+\item use $[[$\texttt{noreturn}$]]$ and other attributes to silence
+  compiler warnings.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Lambdas and Function Declaration Syntax}
+\begin{itemize}
+\item Original synax:
+{\scriptsize\begin{verbatim}
+Widget WidgetFactory (int, double, Gadget&) {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item Suffix return type:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory (int, double, Gadget&) -> Widget {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item Lambda:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory = [](int, double, Gadget&) -> Widget {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item C++14 extends deduced return types to ordinary functions:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory (int, double, Gadget&) {...}
+
+auto WidgetFactory = [](int, double, Gadget&) {...}
+\end{verbatim}
+}
+\vskip 12pt
+\pause
+\item Lambdas: recommended, \emph{particularly} with standard
+  algorithms.
+  \begin{itemize}
+    \item The community may be moving towards writing \emph{all}
+      functions as lambdas
+    \item Gotcha: lambdas that capture local variables by reference
+      shouldn't leave that scope
+  \end{itemize}
+
+
+
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice}
+\begin{itemize}[<+->]
+\item Prefer algorithms to loops
+\begin{itemize}
+  \item Remember Sean Parent's talk, \url{https://www.youtube.com/watch?v=IzNtM038JuI&list=PLHxtyCq_WDLXFAEA-lYoRNQIezL_vaSX-&index=9}
+(Search YouTube for ``Programming Conversations Lecture 5 part 1'')
+\begin{center}
+\Emph{Design Goal: No Raw Loops}
+\end{center}
+\end{itemize}
+\item Containers:
+  \begin{itemize}
+    \item Avoid \texttt{vector<bool>}
+    \item Use \texttt{bitset<N>} as a compile-time-sized alternative
+    \item Use \texttt{std::set, std::map} for convenience and
+      maintainability
+    \item use \texttt{std::vector} and \texttt{std::array<N,T>} for
+        everything else
+      \item New continers (\texttt{unordered\_*}) not generally useful
+        \item Remember, Big-O notation is a lie (until you know what
+          ``big'' means)
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice: Move Semantics}
+\begin{itemize}[<+->]
+\item Write to enable copy elision and RVO when possible
+\begin{itemize}
+  \item If you want a copy of it, take by value
+  \item When possible, arrange for all return statements to return the
+    same object
+\end{itemize}
+
+\item Support move semantics in classes (when it makes sense)
+\begin{itemize}
+  \item Moved-from objects can be in an inconsistent state; they must
+    be safely destructable and assignable.
+    \item Don't move in return types; just return objects.
+\end{itemize}
+\item Use Universl References to enable move semantics and perfect
+  forwarding
+\item \Emph{rvalue-references are lvalues!}
+\item Use \texttt{std::move} to make an l-value into an r-value (organ donor)
+\begin{itemize}
+  \item Never use an object after it has been moved from
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice: RAII and Smart Pointers}
+\begin{itemize}[<+->]
+\item ``SESE'' is outdated; don't warp code to avoid multiple return
+  statements
+\item Always use RAII (Resource Aquisition Is Initialization) to
+  handle resource management
+\item Use \texttt{std::unique\_ptr} for RAII of memory by default.
+\item Use \texttt{std::shared\_ptr} for RAII when needed
+\item Use \texttt{std::weak\_ptr} to break cycles in
+  \texttt{shared\_ptr}s
+\item Don't use \texttt{auto\_ptr} except in extreme, dire, or
+  extraordinary situations
+\item Use \texttt{std::make\_shared} and \texttt{std::make\_unique} to
+  aquire memory directly into smart pointers
+\item ``new'' and ``delete'' are banished from application code.
+\item We have effectively ``perfect'' garbage collection, so use it.
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice: Templates, Metaprogramming, Oh My}
+\begin{itemize}[<+->]
+\item Understand templates, SFINAE, etc.  Don't be afraid to use them
+  when appropriate.
+\item Use \texttt{constexpr} for compile-time values. (Prefer over
+  old-fashioned template metaprogramming)
+\item Use standard type traits when possible
+  \begin{itemize}
+  \item \texttt{std::enable\_if} is particularly useful for SFINAE
+  \end{itemize}
+\item Use template metaprogramming for type computation when necessary
+\item Use variadic templates when necessary or useful
+\item Remember to use Universal References
+\vskip 12pt
+\item \Emph{Think compile time!  These techniques are trememdously
+  useful in embedded systems.}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Advice: When you have time...}
+Watch these videos:
+\begin{itemize}[<+->]
+\item Sean Parent (mentioned earlier)
+%\item Scott Meyers, Universal References:
+%{\tiny \url{https://channel9.msdn.com/Shows/Going+Deep/Cpp-and-Beyond-2012-Scott-Meyers-Universal-References-in-Cpp11}}
+\item Titus Winters, Lessons in Sustainability: \url{https://www.youtube.com/watch?v=zW-i9eVGU_k}
+\item Winters \& Wright, Testing: \url{https://www.youtube.com/watch?v=u5senBJUkPc}
+\item Chandler Carruth, Undefined Behavior:
+   \url{https://youtu.be/yG1OZ69H_-o}
+\item Chander Carruth, Efficiency: \url{https://www.youtube.com/watch?v=fHNmRkzxHWs}
+\vskip 6pt
+\item Why are we using this language? Scott Meyers, ``Why \CC Sails
+  When the Vasa Sank''\url{https://youtu.be/ltCgzYcpFUI}
+\item Of course, Stroustrup: keynotes at any CppCon, GoingNative, and
+  anywhere else you can find him.
+\end{itemize}
+
+\end{frame}

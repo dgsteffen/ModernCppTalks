@@ -1,0 +1,336 @@
+
+\subsection{noexcept}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{noexcept}
+\begin{itemize}[<+->]
+\item If a function cannot throw an exception or if the program isn't
+  written to handle exceptions thrown by a function, that function can
+  be declared noexcept.
+{\scriptsize\begin{verbatim}
+ extern "C" double sqrt(double) noexcept;    // will never throw
+
+ // I'm not prepared to handle memory exhaustion
+ vector<double> my_computation(const vector<double>& v) noexcept
+        {
+            vector<double> res(v.size());   // might throw
+            for(int i; i<v.size(); ++i) res[i] = sqrt(v[i]);
+            return res;
+        }
+\end{verbatim}
+}
+\item \texttt{noexcept} is a shorthand for \texttt{noexcept(true)}.
+\item New operator \texttt{noexcept(expr)} : is true iff the
+  expression can't throw (all calls are noexcept)
+  \begin{itemize}
+  \item Doesn't evaluate its argument (like sizeof()).
+  \end{itemize}
+\item Replaces the old dynamic \texttt{throw()} specification, which
+  was never actually useful.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{noexcept, pt 2}
+\begin{itemize}[<+->]
+
+\item Functions can be made conditionally noexcept:
+{\scriptsize\begin{verbatim}
+template<class T>
+void do_f(vector<T>& v) noexcept(noexcept(f(v.at(0))))
+                                // can throw if f(v.at(0)) can
+ {
+   for(int i; i<v.size(); ++i)
+   v.at(i) = f(v.at(i));
+ }
+\end{verbatim}
+}
+
+\item Dtors shouldn't throw; a generated destructor is implicitly
+  noexcept (independently of what code is in its body) if all of the
+  members of its class have noexcept destructors.
+
+\item It is typically a bad idea to have a move operation throw, so
+  declare those noexcept wherever possible. A generated copy or move
+  operation is implicitly noexcept if all of the copy or move
+  operations it uses on members of its class have noexcept
+  destructors.
+
+\item If a function marked \texttt{noexcept(true)} actually throws,
+  \texttt{std::terminate} is immediately called... crash and burn.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{noexcept, pt 3}
+\begin{itemize}[<+->]
+
+\item Enables some important optimizations:
+
+\item \texttt{std::vector::push\_back} may need to allocate new
+  memory, and move existing elements to the new memory.
+\begin{itemize}
+  \item Ideally, it calls \texttt{std::move} on its elements to do
+    this.
+  \item But, \texttt{push\_back} has the strong exception guarantee --
+    if an operation fails, the vector is left exactly as it was.
+  \item But what happens if a move constructor throws?  It's already
+    moved a bunch of elements out...
+\end{itemize}
+  \item Therefore, to maintain the strong exception guarantee,
+    \texttt{std::vector::push\_back} \emph{cannot move elements} \Emph{unless
+      their move ctors are noexcept}.
+
+\vskip 6pt
+\item Recommendation: put \texttt{noexcept()} everywhere you possibly
+  can.
+\item Optimization aside, it's an important semantic statement that
+  goes a long way towards making code efficient and safe.
+
+\end{itemize}
+\end{frame}
+
+
+
+
+\subsection{User-defined Literals}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{User-defined Literals}
+\framesubtitle{From isocpp.org}
+\begin{itemize}[<+->]
+\item C++ has always provided literals for a variety of built-in types
+{\scriptsize\begin{verbatim}
+ 123  // int
+ 1.2  // double
+ 1.2F // float
+ 'a'  // char
+ 1ULL // unsigned long long
+ 0xD0 // hexadecimal unsigned
+ "as" // string (null-terminated const(?) char*
+\end{verbatim}
+}
+\item However, in C++98 there are no literals for user-defined types.
+\item This can be a bother and also seen as a violation of the
+  principle that user-defined types should be supported as well as
+  built-in types are.
+\item In particular, people have requested:
+{\scriptsize\begin{verbatim}
+"Hi!"s                                    // std::string, not zero-terminated array of char
+1.2i                                      // imaginary
+123.4567891234df                          // decimal floating point (IBM)
+101010111000101b                          // binary
+123s                                      // seconds
+123.56km                                  // not miles! (units)
+1234567890123456789012345678901234567890x // extended-precision
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{User-defined Literals (pt 2}
+\begin{itemize}[<+->]
+\item C++11 supports ``user-defined literals'' via literal operators
+  that map literals with a given suffix into a desired type.
+{\scriptsize\begin{verbatim}
+constexpr complex<double> operator "" i(long double d)  // imaginary literal
+    {
+        return {0,d};   // complex is a literal type
+    }
+
+std::string operator""s (const char* p, size_t n)   // std::string literal
+    {
+        return string(p,n); // requires free store allocation
+    }
+\end{verbatim}
+}
+
+\item Note the use of constexpr to enable compile-time evaluation. Given those, we can write
+{\scriptsize\begin{verbatim}
+ template<class T> void f(const T&);
+
+ f("Hello");    // pass pointer to char*
+ f("Hello"s);   // pass (5-character) string object
+ f("Hello\n"s); // pass (6-character) string object
+ auto z = 2+1i; // complex(2,1)
+\end{verbatim}
+}
+\end{itemize}
+
+\vskip 12pt
+\pause
+See \url{https://isocpp.org/wiki/faq/cpp11-language#udls} for all the details.
+
+\end{frame}
+
+
+
+\subsection{Template Aliases}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Template Aliases}
+\framesubtitle{From isocpp.org}
+\begin{itemize}[<+->]
+\item We have long wanted something like ``template typedefs'':
+{\scriptsize\begin{verbatim}
+// My own storage allocator
+template<class T> struct MyAllocator {...}
+
+// Make a ``typename'' for MyAllocator vectors...
+template<typename T>
+typedef std::vector<T, MyAllocator<T>> MyVector;
+\end{verbatim}
+}
+\item We now have that, but with a different syntax (reusing
+  \texttt{typedef} turned out to be problematic)
+{\scriptsize\begin{verbatim}
+template<typename T>
+using MyVector = std::vector<T, MyAllocator<T>>;
+\end{verbatim}
+}
+\item This syntax can be used as a better$^*$ syntax for ordinary
+  typedefs:
+{\scriptsize\begin{verbatim}
+    typedef void (*PFD)(double);  // C-style
+
+    using PF = void (*)(double);  // using with C-style type
+
+    using P = [](double)->void;   // using with suffix return type
+\end{verbatim}
+}
+\vskip 6pt
+\item \Emph{Recommendation: generally prefer \texttt{using} to \texttt{typedef}.}
+\end{itemize}
+\pause
+$^*$ Better in most people's opinions.
+\end{frame}
+
+
+\subsection{Raw string literals}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Raw string literals}
+\framesubtitle{From isocpp.org}
+\begin{itemize}[<+->]
+\item Sometimes, you want a string to just be a string.  Consider the
+  regex for two words separated by a backslash (\textbackslash
+  w\textbackslash \textbackslash \textbackslash w):
+{\scriptsize\begin{verbatim}
+string s = "\\w\\\\\\w";    // I hope I got that right
+\end{verbatim}
+}
+\item A ``raw string literal'' is a string literal where ``\" isn't an
+  excape character:
+{\scriptsize\begin{verbatim}
+string s = R"(\w\\\w)"; // I'm pretty sure I got that right
+\end{verbatim}
+}
+\item The original proposal for raw strings presents thismotivating example
+{\scriptsize\begin{verbatim}
+"('(?:[^\\\\']|\\\\.)*'|\"(?:[^\\\\\"]|\\\\.)*\")|"
+// Are the five backslashes correct or not? Even experts become easily confused.
+\end{verbatim}
+}
+\item The notation is \texttt{R"(...)"}.
+{\scriptsize\begin{verbatim}
+R"("quoted string")"    // the string is "quoted string"
+\end{verbatim}
+}
+\item If absolutely necessary, custom delimiters can be added:
+{\scriptsize\begin{verbatim}
+ R"***("quoted string containing the usual terminator (")")***"
+// the string is "quoted string containing the usual terminator (")"
+\end{verbatim}
+}
+\vskip 6pt
+\item See
+  \url{https://isocpp.org/wiki/faq/cpp11-language-misc#raw-strings}
+\end{itemize}
+\end{frame}
+
+
+\subsection{Attributes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Attributes}
+\framesubtitle{From isocpp.org}
+\begin{itemize}[<+->]
+\item A new standard syntax aimed at providing some order in the mess
+  of facilities for adding optional and/or vendor specific information
+  into source code (e.g. \_\_attribute\_\_, \_\_declspec, and \#pragma)
+\item Always relate to the immediately preceding syntactic entity.
+{\scriptsize\begin{verbatim}
+void f [ [ noreturn ] ] ()  // f() will never return
+    {
+        throw "error";  // OK
+    }
+
+struct foo* f [ [ carries_dependency ] ] (int i);   // hint to optimizer
+
+int* g(int* x, int* y [ [ carries_dependency ] ] );
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Standard Attributes}
+\framesubtitle{From isocpp.org}
+\begin{itemize}[<+->]
+  \item \texttt{noreturn} : Indicates that the function does not return.
+  \item \texttt{carries\_dependency} : Hint to opimizer
+  \item C++14 adds these:
+  \item \texttt{deprecated} and \texttt{deprecated("reason")} : using the name
+    or entity is allowed but discouraged
+  \item \texttt{fallthrough} in a \texttt{switch} statement on a line of
+    its own indicates that the fallthrough is intentional. (Can shut
+    up annoying compiler warnings.)
+  \item \texttt{nodiscard} The compiler should warn if the function's
+    return value (or a value of this type) is ignored.
+  \item \texttt{maybe\_unused} : suppress compiler warnings
+  \item \texttt{optimize\_for\_synchronized} : optimizer hint for
+    synchronized execution.
+\end{itemize}
+\pause
+Some of these are fairly obscure... check the documentation, your
+mileage may vary.
+
+\end{frame}
+
+\subsection{Flotsam and Jetsam}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Things I Won't Talk About}
+\begin{itemize}[<+->]
+\item \texttt{alignas} for alignment control
+\item \texttt{long long} (we \emph{officially} have it now)
+\item Copying and rethrowing exceptions (\Emph{exception safe code is
+  an entire series of talks in itself})
+\item extended integral types (from C99)
+\item generalized unions
+\item generalised PODs (``Plain Old Data'')
+\vskip 12pt
+\item Concurrency: this is a topic that will also need several
+  talks...
+\begin{itemize}
+  \item and I understand absolutely none of it.
+  \item We can do one eventually, but don't hold your breath
+  \item Volunteers needed!
+\end{itemize}
+\end{itemize}
+\end{frame}
+%% \subsection{Inline Namespaces}
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Inline Namespaces}
+%% \begin{itemize}[<+->]
+%% \end{itemize}
+%% \end{frame}
