@@ -1,0 +1,294 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Container Use}
+
+Chandler Carruth (Google's head compiler guy): Efficiency 101
+\url{https://www.youtube.com/watch?v=fHNmRkzxHWs}
+
+A good talk, the more container-specific rants start at 34:10
+
+\begin{itemize}
+\item Your first choice should always be \texttt{array}.  Don't hit
+  the heap if you can avoid it.
+\item Your second choice should always be \texttt{vector}.
+\item Your third, fourth, fifth... Nth choice should still be
+  \texttt{vector}.
+\begin{itemize}
+  \item Really.
+  \item No, you don't need a \texttt{list}.
+\end{itemize}
+\item Use \texttt{vector} underneath the container
+  adapters(\texttt{queue}, etc).
+\item \texttt{deque} isn't that great, use \texttt{vector}
+\item Use associative containers (\texttt{set, map}) for {\bf convenience
+  and maintainability}, but not for performance.
+\item If you want to use an \texttt{unordered\_*} for performance, use
+  a vector.
+\end{itemize}
+
+\begin{alertblock}{Use \texttt{vector}.}
+Unless you don't care about performance and heap fragmentation, or if
+you have a very specific need.
+\end{alertblock}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Justification}
+\framesubtitle{Stolen From Chandler Carruth's talk}
+How long it takes on modern processors, roughly:
+\vskip 6pt
+\begin{tabular}{ll}
+\hline
+1 cycle & 1 ns \\
+L1 cache ref & .5 ns \\
+L2 cache & 7 ns   (14x L1 cache) \\
+Mutex lock/unlock & 25 ns \\
+Main memory & 100 ns (20x L2, 200x L1) \\ \hline
+\end{tabular}
+
+\vskip 12pt
+
+\begin{alertblock}{Non-local data drops performance by \emph{orders of magnitude} }
+If your data isn't in cache, other performance issues pale in
+comparison
+\end{alertblock}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Node-based containers}
+
+Consider: we have 100 integers and need to find one.
+
+\begin{itemize}
+\item \texttt{set} : lookup is $\sim \ln 100 \sim  O(6)$.
+  \begin{itemize}
+  \item ... times 200 for each cache miss!  Accessing data is ~800
+    cycles \emph{just to access the data}
+    \end{itemize}
+\item Unsorted \texttt{vector} with data in L1 cache: 100 cycles (worst
+  case!)
+\item Pre-sorted \texttt{vector} with data in L1 cache and
+  \texttt{std::binary\_search} : ~6 data accesses (3 ns!) + logic.
+\end{itemize}
+
+\vskip 12pt
+
+\begin{block}{Memory access swamps algorithmic issues}
+\end{block}
+
+\begin{alertblock}{Plus the time taken up hitting the memory allocator
+  to make the thing in the first place}
+ ... and the heap fragmentation... the horror... the horror...
+\end{alertblock}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Big-O Notation Is A Lie}
+\framesubtitle{The Physicist's Approach}
+\begin{itemize}[<+->]
+\item Big-O notation ( $O(N)$ vs $O(\log_2 N)$ ) is only informative
+  \emph{for large} $N$.
+\item Physicists see this all the time, and ask : ``How Big?''
+  \begin{itemize}
+    \item This, because we can never actually do the math, and have to
+      do Taylor expansions in something ``small'' and drop higher
+      orders.
+  \end{itemize}
+\item Previous example, searching for value in $N$ integers.
+\begin{equation*}
+200 \times \log N = N 
+\end{equation*}
+\begin{equation*}
+N \simeq 1460
+\end{equation*}
+\end{itemize}
+\pause{}
+\begin{center}
+But in real life, \Emph{you must measure} to find out what ``big'' $N$
+means
+\end{center}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{School of hard knocks, part 1}
+
+Dave's previous job: military target tracking software
+
+\begin{itemize}[<+->]
+\item Hard real time
+\item Life-critical
+\item Algorithm is fundamentally $O(N!)$.
+\begin{itemize}
+  \item But we were clever, so it was really only $O(N^6)$ on a good
+    day.
+\end{itemize}
+\item For real data $N \sim 300$ was challenging.
+\end{itemize}
+
+\vskip 12pt
+\pause
+\begin{itemize}[<+->]
+\item Key complexity-stomping algoithm:  make all pairs of
+  obervations, and then quickly eliminate pairs we don't want.
+  \begin{enumerate}
+  \item For each observation, make a set of all the other observations
+    (represents all pairs you can make with this guy)
+  \item Apply ``filters'' to this set to eliminate possibilities
+    \begin{itemize}
+      \item Start with crude but fast filters to drop $n$ quickly
+      \item Some filters loop examine each element, others perform set
+        intersection
+    \end{itemize}
+  \item Apply expensive algorithms to what's left to produce ``real''
+    answers
+  \end{enumerate}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{School of hard knocks, part 2}
+
+\begin{itemize}[<+->]
+\item The worst possible beginning:
+{\scriptsize\begin{verbatim}
+set<int> pairs;
+
+for (int i = 1, i < N; ++i)
+  pairs.insert(i);
+\end{verbatim}
+}
+\item OK, node-based container, but even worse...
+\item every insertion causes a tree rebalance
+\item \Emph{There is no slower way to generate a container of 1..N}
+\end{itemize}
+
+\begin{centering}
+We're off to a bad start...
+\end{centering}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{School of hard knocks, part 3}
+
+\begin{itemize}[<+->]
+\item We have a fancy spatial sorting algorithm: for a given position,
+  find all ``nearby'' observations:
+{\scriptsize\begin{verbatim}
+set<int> getNear(observation); // order M log N
+...
+
+pairs = set_intersection(pairs, getNear(my_guy); // order N+M
+\end{verbatim}
+}
+\item This is an entirely reasonable way to approach the problem, and
+  worked well for years.
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{School of hard knocks, part 4}
+
+\begin{itemize}[<+->]
+\item Instead, use \texttt{boost::dynamic\_bitset}
+  \begin{itemize}
+  \item What \texttt{vector<bool>} wanted to be
+  \item based on vector<unsigned>, supports indexed bit access,
+    iteration, bitwise operators
+  \end{itemize}
+\item Represent each possibilty as a bit, rather than a node
+  containing an integer
+\item Fast, but doesn't get smaller as possibilities are eliminated
+  (still N bits to iterate through)
+\item Much worse Bit-O performance
+{\scriptsize\begin{verbatim}
+dynamic_bitset getNear(observation); // order N^2
+...
+
+pairs = set_intersection(pairs, getNear(my_guy); // order N
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{School of hard knocks, part 5}
+\begin{itemize}[<+->]
+\item We have replaced $O(M \log N)$ (with $M << N$) with
+  $O(N^2 + N)$.
+\item The mathematicians called us out (quite rightly)
+\item Investigation showed the new algorithm was faster for $N < 10^7$.
+\item ... because each $N$ had a relative $\frac{1}{200}$ for L1
+  cache...
+\item and $\frac{1}{32}$ for storage ...
+\item and more on top for simplicity (bitwise \& operations in
+  registers)
+  \item This, for a system where $N \sim 300$ is big!
+\item Runtime dropped by 2 orders of magnitude for all real problems
+\item Many operations \emph{dissapeared} from the profiler's call
+  graph.  ``How much faster is it'' was an unanswerable question.
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+  \frametitle{School of hard knocks, lessons learned}
+  
+
+\begin{itemize}[<+->]
+\item ``Big O'' notation is a lie.
+  \begin{itemize}
+    \item It's a \emph{useful} lie, but it's still a lie
+    \item because \Emph{there are constants out in front}
+  \end{itemize}
+\item ``Big O'' only applies to big $N$
+\item How big is ``big''?
+\item Measure!!!
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Final Advice}
+
+\begin{itemize}
+\item Your first choice should always be \texttt{array}.  Don't hit
+  the heap if you can avoid it.
+\item Your second choice should always be \texttt{vector}.
+\item Your third, fourth, fifth... Nth choice should still be
+  \texttt{vector}.
+\begin{itemize}
+  \item Really.
+  \item No, you don't need a \texttt{list}.
+\end{itemize}
+\item Use \texttt{vector} underneath the container
+  adapters(\texttt{queue}, etc).
+\item \texttt{deque} isn't that great, use \texttt{vector}
+\item Use associative containers (\texttt{set, map}) for {\bf convenience
+  and maintainability}, but not for performance.
+\item If you want to use an \texttt{unordered\_*} for performance, you
+  have already lost; use a sorted vector.
+  \begin{itemize}
+  \item and don't bother sorting if N isn't big
+  \end{itemize}
+
+\end{itemize}
+\end{frame}

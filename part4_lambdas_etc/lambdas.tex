@@ -1,0 +1,294 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Lambdas}
+\begin{columns}[t]
+\column{.4\textwidth}
+\Emph{Previously: }
+\begin{itemize}
+\item  <1->{\scriptsize\begin{verbatim}vector<int>::iterator i = v.begin();  \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}for (; i != v.end(); ++i) {\end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}  if (*i > x && *i < y)    \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}     break;  \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim} }   \end{verbatim}}
+\vskip 6pt
+\item  <2->{\scriptsize\begin{verbatim}struct my_pred {  \end{verbatim}}
+\item[]<2->{\scriptsize\begin{verbatim}  int x, y; // assume a ctor\end{verbatim}}
+\item[]<2->{\scriptsize\begin{verbatim}  bool operator()(int i) {   \end{verbatim}}
+\item[]<2->{\scriptsize\begin{verbatim}    return (i > x && i < y); \end{verbatim}}
+\item[]<2->{\scriptsize\begin{verbatim}}; \end{verbatim}}
+\vskip 6pt
+\item[]<2->{\scriptsize\begin{verbatim}auto i = find_if( begin(v), end(v), \end{verbatim}}
+\item[]<2->{\scriptsize\begin{verbatim}             my_pred(x,y) );     \end{verbatim}}
+\end{itemize}
+
+\column{.6\textwidth}
+\only<3-4>{\hskip 1in \Emph{But now....}}
+\vskip 48pt
+\begin{itemize}
+\item  <4->{\scriptsize\begin{verbatim}auto i = find_if( begin(v), end(v), \end{verbatim}}
+\item[]<4->{\scriptsize\begin{verbatim}[=](int i){ return *i > x && *i < y; } );\end{verbatim}}
+\end{itemize}
+
+\end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Lambda Syntax and return types}
+
+{\scriptsize
+\begin{verbatim}
+[]             (int i)      ->int         { ... ;}
+
+[capture list] (parameters) ->return_type {body} 
+
+ =  by value     optional     optional
+ &  by ref      
+\end{verbatim}
+}
+
+Deduced return type:
+\begin{itemize}
+\item One return statement? Return type deduced from expression.
+\item No return statement?  Return type \texttt{void}
+\item Multiple return statements? C++11, no; C++14, fine if all return
+  statements return the same type.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Lambda Syntax and capture lists}
+
+{\scriptsize
+\begin{verbatim}
+[]             (int i)      ->int         { ... ;}
+
+[capture list] (parameters) ->return_type {body} 
+
+ =  by value     optional     optional
+ &  by ref      
+\end{verbatim}
+}
+
+Capture list:
+\begin{itemize}
+\item \texttt{'='} means 'by value',  \texttt{'\&'} means 'by reference'
+\item Default:  \texttt{[=]} means 'capture all local static variables by value' 
+\item Default:  \texttt{[\&]} means 'capture all local static variables by reference' 
+\item Explicit \texttt{[i, \&j, k]}  or \texttt{[\&, j]}  
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{More complete example}
+
+{\scriptsize
+\begin{verbatim}
+int findFirstInRange( int x, double d, const vector<int>& v)
+{
+
+int y = static_cast<int>(sqrt(d));
+
+auto i = find_if( begin(v), 
+                  end  (v), 
+   [x, &y](int i){ return *i > x && *i < y; } );
+
+return *i;
+}
+\end{verbatim}
+}
+\pause
+
+\begin{itemize}
+\item The lambda captures x by value and y by reference
+\item If we had written [=], the lambda would have captured x,y,d,
+  \Emph{and v} by value (but only if we use them).
+\item If we had written [\&], the lambda would have captured by
+  reference (but only if we use them).
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Lambda Gotchas}
+\begin{itemize}
+\item Only one that I know of:
+{\scriptsize
+\begin{verbatim}
+auto foo(double d) -> decltype(...) {
+  int i;
+  auto fn = [&](){return pow(d,i);}
+  return fn;   // Boom!  Holds refs to local vars!
+}
+\end{verbatim}}
+
+Be careful with returning lambdas.  Lambdas that capture local
+variables by reference \emph{must not} leave that scope!
+
+\vskip 18pt
+
+
+\item Why would you want to do this?  Example:
+{\scriptsize
+\begin{verbatim}
+  auto my_sort = sorting_lambda_factory(...)
+
+  sort ( begin(v), end(v), my_sort );  // sort a vector
+  set<foo, my_sort> m_set;             // set sorted the same way
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Performance Improvements}
+\center{\Emph{Live Demo} (TBD: re-recreate this)}
+
+\pause
+
+\begin{tabular}{cc}
+Function pointers: &  43 sec  \\
+Functors:         &  19 sec   \\
+Lambdas:          &  18.5 sec \\
+\end{tabular}
+
+\begin{itemize}
+\item Functors and Lambdas can and will be inlined; function pointers
+  can't.
+\item Lambdas \emph{may} be faster because of compiler or library optimizations.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Reprise: Function Declaration Syntax}
+\begin{itemize}
+\item Original synax:
+{\scriptsize\begin{verbatim}
+Widget WidgetFactory (int, double, Gadget&) {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item Suffix return type:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory (int, double, Gadget&) -> Widget {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item Lambda:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory = [](int, double, Gadget&) -> Widget {...}
+\end{verbatim}
+}
+\pause{}
+\vskip 6pt
+\item C++14 extends deduced return types to ordinary functions:
+{\scriptsize\begin{verbatim}
+auto WidgetFactory (int, double, Gadget&) {...}
+
+auto WidgetFactory = [](int, double, Gadget&) {...}
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+ 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Lambdas, Lambdas, Everywhere?}
+We may be moving towards a style where \emph{most functions} are
+written as lambdas:
+\begin{columns}[t]
+\column{.5\textwidth}
+\Emph{\CC 98 Predicates:}
+{\scriptsize\begin{verbatim}
+struct isWocket 
+{
+  bool operator() (const Widget* r) 
+  {
+    return r->getType() == TypeEnum::Wocket;
+  }
+};
+
+struct isIncompleteWocket
+{
+  bool operator() (const Widget* const p)
+  {
+  return ( isWocket()(p) && 
+           ( !(p->isComplete() ) ) );
+  }
+};
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+\Emph{With Lambdas}
+{\scriptsize\begin{verbatim}
+auto isWocket = [](const Widget* r)
+{  
+  return r->getType() == TypeEnum::Wocket;
+}
+
+
+
+
+auto isIncompleteWocket = 
+                [](const Widget* const p)
+{
+  return ( isWocket(p) && 
+           ( !(p->isComplete() ) ) ); 
+}
+\end{verbatim}
+}
+\end{columns}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{And Templates}
+With C++14, generic lambdas (templates!)
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize\begin{verbatim}
+template<typename T>
+bool isWocket (const T* r)
+{
+    return r->getType() == TypeEnum::Wocket;
+
+};
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+{\scriptsize\begin{verbatim}
+auto isWocket = [](const auto* r)
+{  
+  return r->getType() == TypeEnum::Wocket;
+}
+\end{verbatim}
+}
+\end{columns}
+
+\vskip 12pt
+\pause{}
+\begin{block}{Irony...}
+This is more-or-less the template syntax that Stroustrup wanted back
+in the late 80's.
+\end{block}
+
+\end{frame}

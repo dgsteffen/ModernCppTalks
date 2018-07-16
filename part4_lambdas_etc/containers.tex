@@ -1,0 +1,225 @@
+\subsection{Old Containers}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{``Old'' containers}
+\begin{columns}[t]
+\column{.5\textwidth}
+C++03 Containers:
+\begin{itemize}
+\item list
+\item deque
+\item vector
+\item set
+\item multiset
+\item map
+\item multimap
+\item bitset<N>
+\item valarry (don't use)
+\end{itemize}
+\pause{}
+
+\column{.5\textwidth}
+C++03 Container Adaptor:
+\begin{itemize}
+\item stack
+\item queue
+\item priority\_queue
+\end{itemize}
+\end{columns}
+\begin{alertblock}{Don't use vector<bool>}
+Sounded like a good idea, but highly(?) problematic
+\end{alertblock}
+\begin{block}{bitset<N>}
+bitset is a compile-time-sized alternative to vector<bool>...
+\end{block}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{New Containers}
+
+\begin{frame}[fragile]
+\frametitle{New \CC11 containers}
+C++03 Containers:
+\begin{itemize}
+\item array
+\item forward\_list
+\item unordered\_set
+\item unordered\_multiset
+\item unordered\_map
+\item unordered\_multimap
+
+\end{itemize}
+\begin{exampleblock}{std::array<N,T> replaces C-style arrays}
+array is a compile-time-sized static array, replaces
+
+\hskip 2in
+int a[]
+\end{exampleblock}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{array}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{array}
+
+{\scriptsize\begin{verbatim}
+array<int, 6> cool  = { 1, 2, 3 };
+
+int ugly[6] = { 1, 2, 3 };
+
+// in functions...
+template<typename ArrayType>
+void foo( const ArrayType& a)
+{
+   assert (N == arr.size());
+}
+
+
+foo(cool); // no problem
+foo(ugly); // Compiler Error,  int* has no member function ``size''
+\end{verbatim}
+}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{array, pt 2}
+\begin{itemize}
+\item It's a full-on C++ sequence container, with all that implies
+  \begin{itemize}
+    \item member functions, typedefs, etc
+  \end{itemize}
+\item Doesn't decay to a pointer like raw C-style arrays
+\item Prevents pontentially nasty derived-to-base conversions:
+{\scriptsize\begin{verbatim}
+struct Apple : Fruit {...};
+struct Pear  : Fruit {...};
+
+void nasty( array<Fuit*,6>& f )   {
+  f[2] = new Pear();
+}
+
+array<Apple*, 10> apples;
+
+nasty(apples);  // Compile error: can't convert array<Apple*, 10>
+                // to array<Fruit*,10>
+\end{verbatim}
+}
+\end{itemize}
+
+\begin{block}{Use Everywhere}
+Replace old-style arrays with this without reservation
+\end{block}
+
+\begin{exampleblock}{example block}
+... example ...
+\end{exampleblock}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{forward\_list}
+\begin{frame}[fragile]
+\frametitle{forward\_list}
+\begin{itemize}
+\item A singly-linked list.
+\item Supports forward-iteration only
+\item Guarantees that elements don't move if you insert or erase
+\end{itemize}
+\begin{block}{Use when you need it}
+As with all standard containers.... know the trade-offs, use the right onw.
+\end{block}
+\begin{alertblock}{You probaby don't need it}
+We'll come back to this
+\end{alertblock}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Unordered Containers}
+\begin{frame}[fragile]
+\frametitle{Unordered containers}
+\begin{itemize}
+\item Hash-based containers:
+  \begin{itemize}
+  \item unordered\_set
+  \item unordered\_multiset
+  \item unordered\_map
+  \item unordered\_multimap
+  \end{itemize}
+\item Would have been called ``hash\_map'', etc, but the names had
+  already been used for years.
+\item Unordered
+\item $O(1)$ lookup
+\item Requires a hash function for the key (but std::hash has that
+  covered for most existing types)
+\item Uses chaining for collisions (which is unfortunate...)
+\end{itemize}
+\begin{exampleblock}{Optimization}
+Trades memory for speed ($O(1)$ lookup)
+\end{exampleblock}
+\begin{alertblock}{But careful}
+unordered\_set(string) is $O(N)$ \emph{because you have to hash the string!}
+\end{alertblock}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Improvements}
+\begin{frame}[fragile]
+\frametitle{Improvements to existing containers}
+\framesubtitle{part 1}
+Existing containers have been updated with move semantics and other goodies:
+\begin{itemize}
+\item initializer lists: \texttt{vector<pair<int, int>> s =
+  \{\{1,2\},\{3,4\}\}};
+  \begin{itemize}
+  \item Careful with \texttt{vector<int>}, there are some interesting ambiguities
+    \begin{verbatim}
+vector<int> v(100); // 100 ints
+vector<int> v{100}; // one element of value 100
+    \end{verbatim}
+   \end{itemize}
+\item Move constructors and move-assignment operators
+  \begin{itemize}
+    \item Compiling with \CC11 can drastically improve performance
+      \emph{with no code changes}
+  \end{itemize}
+\item Improved push/insert :
+  \begin{verbatim}
+ vector<pair<string,int>> vp;
+ vp.push_back({``String'', 42}); // move-enabled
+\end{verbatim}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Improvements to existing containers}
+\framesubtitle{part 2}
+\begin{itemize}
+\item Emplacement operations: why copy or move anything?
+\begin{verbatim}
+vector<Widget> v;
+v.emplace_back({Camel, 42, ``This is not my cow''});
+\end{verbatim}
+  \begin{itemize}
+    \item Calls the Widget constructor \emph{directly} on the new
+      vector object, with the specified values.  No copy, no move.
+  \end{itemize}
+\item More generally, all insert operations now have ``emplace''
+  equivalents:
+\begin{verbatim}
+set<pair<string, int>> s;
+s.emplace({"This is a hippopotamus", 1234});
+\end{verbatim}
+\end{itemize}
+
+\begin{block}{Upgraded Containers}
+All containers have been generally upgraded to use \CC11 and \CC14
+features.
+\end{block}
+
+\end{frame}

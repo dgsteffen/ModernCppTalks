@@ -1,0 +1,328 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{``Old'' algorithms}
+\begin{multicols}{4}
+%\column{.15\textwidth}
+{\scriptsize
+for\_each
+
+find
+
+find\_if
+
+find\_if\_not
+
+find\_end
+
+find\_first\_of
+
+adjacent\_find
+
+count
+
+count\_if
+
+mismatch
+
+equal
+
+search
+
+search\_n
+
+copy
+
+copy\_backward
+
+swap
+
+swap\_ranges
+
+iter\_swap
+
+transform
+
+replace
+
+replace\_if
+
+replace\_copy
+
+replace\_copy\_if
+
+fill
+
+fill\_n
+
+generate
+
+generate\_n
+
+%}
+%\column{.15\textwidth}
+%{\scriptsize
+remove
+
+remove\_if
+
+remove\_copy
+
+remove\_copy\_if
+
+unique
+
+unique\_copy
+
+reverse
+
+reverse\_copy
+
+rotate
+
+rotate\_copy
+
+random\_shuffle
+
+partition
+
+stable\_partition
+
+sort
+
+stable\_sort
+
+partial\_sort
+
+partial\_sort\_copy
+
+nth\_element
+
+lower\_bound
+
+upper\_bound
+
+equal\_range
+
+binary\_search
+
+
+merge
+
+inplace\_merge
+
+includes
+
+
+
+
+%}
+%\column{.2\textwidth}
+
+%{\scriptsize
+
+set\_union
+
+set\_intersection
+
+set\_difference
+
+set\_symmetric\_difference
+
+
+
+push\_heap
+
+pop\_heap
+
+make\_heap
+
+sort\_heap
+
+
+
+
+
+min
+
+max
+
+min\_element
+
+max\_element
+
+
+
+lexicographical\_compare
+
+next\_permutation
+
+prev\_permutation
+
+}
+\end{multicols}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{New C++11 algorithms}
+\begin{multicols}{2}
+%\column{.15\textwidth}
+all\_of
+
+any\_of
+
+none\_of
+
+find\_if\_not
+
+copy\_if
+
+copy\_n
+
+move
+
+move\_backward
+
+partition\_copy
+
+partition\_point
+
+partial\_sort\_copy
+
+partial\_sort\_copy
+
+is\_sorted
+
+is\_sorted\_until
+
+is\_heap
+
+is\_heap\_until
+
+min
+
+max
+
+minmax
+
+minmax\_element
+
+iota
+
+\end{multicols}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Prefer Algorithms to Loops}
+Consider the cognitive load in understanding the following:
+\begin{columns}[t]
+\column{.5\textwidth}
+\pause{}
+{\scriptsize\begin{verbatim}
+auto iter = v.begin();
+for (; iter != v.end(); ++i) {
+  if (*i == some_value    )
+   break;
+}
+\end{verbatim}
+}
+\pause{}
+{\scriptsize\begin{verbatim}
+map<int, Widget>::iterator iter;
+for (auto val& : mymap)
+  if (val.first == some_value)
+    {
+       iter = val;
+       break;
+    }
+\end{verbatim}
+}
+\pause{}
+{\scriptsize\begin{verbatim}
+int name_obfuscated() const {
+  int count = 0
+  for (int i = 0; i < _items.size; ++i)
+    if ((*i)->getType()== 
+           TypeEnum::Wocket &&
+        !(*i)->isComplete())
+     ++count;
+  return count;
+} 
+\end{verbatim}
+}
+\column{.5\textwidth}
+\pause
+{\scriptsize\begin{verbatim}
+auto iter = find_if(begin(v), end(v),      
+  [](auto val){ return val == some_value;});
+          
+
+\end{verbatim}
+}
+\pause{}
+{\scriptsize\begin{verbatim}
+
+auto inter = mymap.find(some_value);
+
+
+
+
+
+
+\end{verbatim}
+}
+{\scriptsize\begin{verbatim}
+int name_obfuscated() const {
+  return std::count_if(_items.begin(), 
+                       _items.end(), 
+               isIncompleteWocket());
+
+// (Really named numIncompleteWockets)
+
+
+}
+\end{verbatim}
+} 
+\end{columns}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{}
+\begin{itemize}[<+->]
+\item Standard algorithms are probably faster.
+\item Standard algorithms are probably more correct.
+  \begin{itemize}
+    \item They handle edge cases for us
+    \item Hard to write correctly, these have already been debugged
+  \end{itemize}
+\item Loops have no build-in semantics other than ``loop''.  Replace
+  them with something has has build-in semantics.
+  \begin{itemize}
+    \item ``find\_if'' tells you immediately what the desired
+      operation is.
+  \end{itemize}
+\item \Emph{Know a little about the standard library}.
+  \begin{itemize}
+    \item Nobody knows what they all do in detail, but everyone
+      (should!) know they exist
+  \end{itemize}
+\end{itemize}
+
+\pause{}
+See Sean Parent's talk ``No Raw Loops'':
+
+\url{https://www.youtube.com/watch?v=IzNtM038JuI&list=PLHxtyCq_WDLXFAEA-lYoRNQIezL_vaSX-&index=9}
+(Search YouTube for ``Programming Conversations Lecture 5 part 1'')
+
+\begin{center}
+\Emph{Design Goal: No Raw Loops}
+\end{center}
+
+\end{frame}
