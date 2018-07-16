@@ -1,0 +1,142 @@
+\lyxframeend{}\subsection[\CC 11]{{\CC 11}, and why we need this talk}
+
+
+\begin{frame}[fragile,t]
+\frametitle{\CC11 : Major Changes}
+
+\begin{itemize}
+
+  \item \textquotedblleft{}\CC11 feels like a new language.\textquotedblright{} --- Bjarne Stroustrup
+    \pause{}
+
+  \item \textasciitilde{}10 features pervasively change \CC\ coding
+    syle, idioms, and guidance. {}``We broke every single book on the
+    planet and we broke every single programmer on the planet.'' ---
+    Herb Sutter
+
+    \pause{}
+{\scriptsize
+    \begin{enumerate}
+    \item auto
+    \item initializer lists
+    \item range-based for loop
+    \item smart pointers
+    \item lambdas
+    \item nullptr
+    \item move semantics
+    \item Class support / extensions
+    \item atomic operations / threading
+    \item enum class
+    \end{enumerate}
+}
+\end{itemize}
+
+%}
+%\end{columns}
+\end{frame}
+
+\lyxframeend{}
+
+
+\begin{frame}[fragile]
+\frametitle{\CC11 References}
+\framesubtitle{E.G., where Dave stole all this material from}
+\begin{itemize}
+  \item New books to update style, idioms and guidance:
+
+    \pause{}
+    \begin{itemize}
+    \item \noun{What:} T\CC~PL 4th Ed (Stroustrup) now available
+      \pause{}
+
+    \item \noun{Why and How}: Style (Meyers) -- ``Effective Modern
+      \CC'',  2014.
+      \pause{}
+
+    \item \noun{Thou Shalt}: \CC\ Coding Standards (Sutter \&
+    Alexandrescu, 2005) updated by an extensive website \url{https://isocpp.org/faq}.
+
+    \pause{}
+
+    \item ... except maybe it's nice to have a guide through the \CC11 forest.
+    \end{itemize}
+\end{itemize}
+\end{frame}
+\lyxframeend{}
+
+
+
+
+\begin{frame}[fragile,t]
+\frametitle{\CC\ Standards through the ages}
+\begin{description}
+\item[1985]: First Commerical Release, T\CC~PL, 1st Ed
+\item[1991]: T\CC~PL, 2nd Ed, added templates and exceptions
+\item[1997]: T\CC~PL, 3rd Ed, introduced ISO standard, added STL
+\item[1998]: ISO \CC Standard (``\CC 98'')
+\item[2003]: \CC 03 (``bug fix'' ISO Standard)\par
+\item[2007]: TR1 (library additions): shared\_ptr, hash tables
+\item[2011]: \CC 11, major revisions (what we're talking about today)
+\item[2013]: Complete \CC11 implementations (GCC 4.8, CLANG 3.2)
+\item[2014]: \CC 14   ``Bug fix'' to \CC11
+\item[2017]: \CC17 New stuff; complete implementation in GCC 7
+\item[2020]: \CC20 (?) In progress
+\end{description}
+\end{frame}
+
+
+\lyxframeend{}%\lyxframe{\CC11 : Major Changes}
+
+
+
+
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{\CC11 References}
+\framesubtitle{E.G., where Dave stole all this material from}
+
+\begin{itemize}
+\item {\bf The} \CC\ Web Page: {\url{http://isocpp.org}}.  Has links to the actual standard document, blogs, etc.
+      \begin{itemize}
+      \item The FAQ at {\footnotesize \url{https://isocpp.org/faq}} has a section devoted to \CC11 features.
+      \end{itemize}
+\item GoingNative12 and 13: a bunch of \emph{really} good
+      talks. {\footnotesize \url{http://herbsutter.com/2012/02/08/going-native-sessions-online/}} and
+      {\footnotesize \url{http://channel9.msdn.com/Events/GoingNative/2013}}
+\item CppCon (took over for GoingNative in 2014) talks on YouTube.
+\item Stroustrup's home page and FAQ. {\footnotesize \url{http://www2.research.att.com/~bs}}
+\item Herb Sutter's Blog and GOTW {\footnotesize \url{http://herbsutter.com/}}
+\item C++ Next, particularly Dave Abrahams' discusson of move
+semantics: {\footnotesize \url{http://web.archive.org/web/20140113221447/http://cpp-next.com/archive/2009/08/want-speed-pass-by-value/}}
+
+
+\item GCC \CC11/14/17 support: {\footnotesize \url{https://gcc.gnu.org/projects/cxx-status.html}}
+
+
+\end{itemize}
+
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+\frametitle{The rest of this talk}
+\framesubtitle{``Hitting the high points''}
+
+\begin{itemize}
+
+        \item auto
+        \item uniform initialization / initializer lists
+        \item range-based for loops
+        \item nullptr
+%        \item Class extensions
+%        \item lambdas (and sermon on standard containers and algorithms)
+%        \item move semantics
+%        \item smart pointers (and sermon on RAII, SESE, etc)
+\end{itemize}
+
+\end{frame}

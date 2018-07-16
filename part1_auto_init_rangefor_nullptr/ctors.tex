@@ -1,0 +1,358 @@
+
+\subsection{Class Extensions}
+\lyxframeend{}
+
+%\lyxframe{auto} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 1
+\begin{frame}[fragile]
+\frametitle{Delegating Ctors}
+\framesubtitle{(Mostly directly from Stroustrup's website)}
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+
+\begin{verbatim}  
+class X {
+  int a;
+
+  validate(int x) { stuff }
+
+ public:
+
+  X(int x) { validate(x); }
+  X()      { validate(42); }
+  X(string s) { int x = lexical_cast<int>(s); 
+                validate(x); }
+};
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim} 
+class X {
+  int a;
+
+
+
+ public:
+
+  X(int x)            { stuff  }
+  X()         : X{42} { }
+  X(string s) : X{lexical_cast<int>(s)} { }
+};
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\begin{itemize}
+\item Gotchas: none known yet.
+\item Only the delegating ctor is allowd in the init list.  Delegate
+  or initialize, not both.
+\item Lifetime begins when \Emph{any} constructor completes.
+  Therefore an exception thrown from the body of a
+  delegating constructor will cause the destructor to be invoked.
+
+\item Note that delegating to a base class' ctors has always been
+supported.  Now we can delegate to our own.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors}
+
+\begin{columns}[t]
+\column{.5\textwidth}
+A member of a base class is not in the same scope as a member of a derived class:
+{\scriptsize
+\begin{verbatim} 
+struct B            {void f(double);};
+
+struct D : public B {void f(int);};
+
+B b;   b.f(4.5);  // fine
+D d;   d.f(4.5);  // surprise: calls f(int) 
+                  // with argument 4
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+In \CC98, we can "lift" a set of overloaded functions from a base class into a derived class:
+{\scriptsize
+\begin{verbatim}
+struct B {void f(double);};
+
+struct D : public B {
+  using B::f;  // bring all f()s from B 
+               // into scope
+
+  void f(int); // add a new f()
+};
+
+B b;   b.f(4.5); // fine
+D d;   d.f(4.5); // fine: calls D::f(double) 
+                 // which is B::f(double)
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\vskip 24pt
+"Little more than a historical accident prevents using this to work for a constructor as well as for an ordinary member function." --Stroustrup
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors II}
+
+Syntax: 
+
+
+{\scriptsize
+\begin{verbatim}
+struct B
+{
+    B(int);    // normal constructor 1
+    B(string); // normal constructor 2
+};
+
+struct D : public B
+{
+    using B::B; // inherit (all!) constructors from B
+};
+\end{verbatim}
+}
+This implicitly defines
+{\scriptsize
+\begin{verbatim}
+D::D(int);    // inherited
+D::D(string); // inherited
+\end{verbatim}
+}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors III}
+Gotcha: inherit ctor in a derived class with new member variables that
+need initialization:
+
+{\scriptsize
+\begin{verbatim}
+struct B1 {
+  B1(int i) : a(i) { }
+  int a;
+};
+
+struct D1 : public B1 {
+  using B1::B1; // implicitly declares D1(int)
+  int x;
+};
+
+D1 d(6);	// Oops: d.x is not initialized
+D1 e;           // error: D1 has no default constructor
+\end{verbatim}
+}
+
+Inherited ctors don't know about added member data, but you can call
+base ctors directly:
+{\scriptsize
+\begin{verbatim}
+struct D1 : public B1 {
+  using B1::B1;
+  D1(int a, int b) : B1(a), x(b) {}
+}
+\end{verbatim}
+}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Override controls: override}
+\framesubtitle{(straight from the isocpp website)}
+Confusing:
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim}
+struct B {
+    virtual void f();
+    virtual void g() const;
+    virtual void h(char);
+    void k();   // not virtual
+};
+struct D : B {
+    void f();   // overrides B::f()
+    void g();   // doesn't override B::g() 
+                //   (wrong type)
+    void h(char); // overrides B::h()
+
+    void k();   // doesn't override B::k(), 
+                // B::k() is not virtual
+};
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim}
+ 
+ 
+ 
+ 
+ 
+
+struct D : B {
+  void f() override;  // OK: overrides B::f()
+  void g() override;  // error: wrong type
+
+  void h(char);       // overrides B::h(); 
+                      //   likely warning
+  void k() override;  // error: B::k() 
+                      //   is not virtual
+};
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\begin{itemize}
+\item A declaration marked override is only valid if there is a function to override.
+\item 'override' is only a contextual keyword, so you can still use it
+  as an identifier (but arguably you shouldn't).
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Override controls: final}
+\framesubtitle{(straight from the isocpp website)}
+How to keep a virtual function from beeing overridden?
+\begin{columns}[t]
+\column{.5\textwidth}
+\Emph{\CC 03: comments...}
+{\scriptsize
+\begin{verbatim}
+struct A { virtual void f(); };
+
+struct B : public A {
+  // DO NOT OVERRIDE, THIS MEANS YOU
+  virtual void f(); 
+};
+
+struct C : public B {
+  // compiler doesn't read comments
+  virtual void f(); 
+};
+\end{verbatim}
+}
+\pause{}
+\column{.5\textwidth}
+\Emph{\CC 11: final keyword}
+{\scriptsize
+\begin{verbatim}
+struct A { virtual void f(); };
+
+struct B : public A {
+  virtual void f() final; 
+};
+
+struct C : public B {
+  virtual void f(); // error
+};
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\begin{itemize}
+\item Use for semantic purposes only, not optimization (this is not Java)
+\item Frequently used to cover OO design error.  Closes off future
+  customization... do you really want to do that?
+\item final is only a contextual keyword, so you can still use it as
+  an identifier (but you probably shouldn't).
+\end{itemize}
+\end{frame}
+
+
+
+
+\begin{frame}[fragile]
+\frametitle{Deleted Members}
+\framesubtitle{(straight from the isocpp website)}
+How to prohibit copying?
+\begin{columns}[t]
+\column{.5\textwidth}
+\Emph{\CC 03: The old way...}
+{\scriptsize
+
+\begin{verbatim}
+struct A {
+
+ // ...
+private:
+
+ A(const A&); // copy ctor
+ A& operator=( const A&);
+};
+\end{verbatim}
+
+Make copy ops private and don't define them
+}
+\pause{}
+\column{.5\textwidth}
+\Emph{\CC 11: explicitly delete 'em}
+{\scriptsize
+\begin{verbatim}
+struct A {
+
+ // ...
+ A(const A&) = delete; 
+ A& operator=(const A&) = delete;
+};
+\end{verbatim}
+
+Explicitly prevent compiler from generating the default implementations.
+}
+\end{columns}
+
+\pause{}
+\vskip 12pt
+Can also be used to eliminate undesired converions:
+{\scriptsize
+\begin{verbatim}
+struct Z {
+  // ...
+  Z(long long);     // can initialize with a long long
+  Z(long) = delete; // but not anything smaller
+};
+\end{verbatim}
+}
+
+\end{frame}
+
+
+
+\begin{frame}[fragile]
+\frametitle{Defaulted Members}
+\framesubtitle{(straight from the isocpp website)}
+Conversely, sometimes we'd like the compiler to provide a default: 
+{\scriptsize
+\begin{verbatim}
+class Y {
+    // ...
+    Y(const Widget&); // disables compiler-generated defaults
+
+    Y& operator=(const Y&) = default;   // default copy semantics
+    Y(const Y&) = default;
+};
+\end{verbatim}
+}
+\pause{}
+\begin{itemize}
+\item Useful when the compiler-generated defaults have been disabled (by
+providing other ctors)
+\item Arguably, can increase clarity even when not needed.
+\end{itemize}
+\end{frame}
