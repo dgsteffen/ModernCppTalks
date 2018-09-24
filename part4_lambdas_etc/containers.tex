@@ -203,7 +203,7 @@ vector<int> v{100}; // one element of value 100
 \item Emplacement operations: why copy or move anything?
 \begin{verbatim}
 vector<Widget> v;
-v.emplace_back({Camel, 42, ``This is not my cow''});
+v.emplace_back(Camel, 42, ``This is not my cow'');
 \end{verbatim}
   \begin{itemize}
     \item Calls the Widget constructor \emph{directly} on the new
@@ -213,7 +213,7 @@ v.emplace_back({Camel, 42, ``This is not my cow''});
   equivalents:
 \begin{verbatim}
 set<pair<string, int>> s;
-s.emplace({"This is a hippopotamus", 1234});
+s.emplace("This is a hippopotamus", 1234);
 \end{verbatim}
 \end{itemize}
 
