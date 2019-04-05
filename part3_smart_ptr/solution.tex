@@ -8,7 +8,11 @@
   they are much more widely useful.
 \item The key idea:  \Emph{Tie resource management to object lifetime}
 \item Resource manager objects receive the resource in their
-  ctor, and release it in their dtor.
+  ctor, and release it in their dtor.  Emphasis:
+\begin{itemize}
+  \item Allocate resource in constructor (at initialization)
+  \item Release resources in destructor (at scope exit)
+\end{itemize}
 \item Normal scoping rules now ensure proper cleanup.
 \item Exceptions cause local variables to be destructed, so no leaks.
 \end{itemize}
@@ -46,13 +50,17 @@ void foo() {                      void foo() {
 }
 
 (for some definition of ``smart\_ptr'')
+
+The smart pointer object receives a dynamically allocated object in
+its ctor, and releases it in the dtor, which executes at scope exit.
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
 \frametitle{And the code gets cleaner too}
-Remember out Single-Entry-Single-Exit example:
+
+Remember our Single-Entry-Single-Exit example:
 
 \begin{columns}[t]
 \column{.5\textwidth}
@@ -62,7 +70,6 @@ void foo() {
   if (precondition1) {
     double* d = new double[70];
     if (d) {
-      ...
       if (conditionA) {
         Widget* w = new Widget;
         if (conditionB) {
@@ -85,10 +92,9 @@ Becomes this:
 {\scriptsize\begin{verbatim}
 void foo() {
   if (!precondition1)  return;
-  vector<double> d (70);   // #1
-                           // #2
-  ...
-  if (!conditionA) return;
+  std::vector<double> d (70); // #1
+                              // #2
+  if (!precondition2) return;
   smart_ptr<Widget> w = new Widget;
   if (conditionB) return;
   // finally do some work

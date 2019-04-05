@@ -27,6 +27,7 @@ void foo() {
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
 \frametitle{SESE}
+
 Single-Entry-Single-Exit is an attempt to mitigate this problem:
 
 \begin{columns}[t]
@@ -38,18 +39,17 @@ void foo() {
     double* d = new double[70];
     if (d) {
       ...
-      if (conditionA) {
+      if (precondition2) {
         Widget* w = new Widget;
         if (w) {
            // finally do some work
-           ...
            FiddleWidget(w);
            ...
            }
         delete w;
         }
-     delete d[];
      }
+   delete d[];
    }
   return;
 }
@@ -109,6 +109,16 @@ Every statement must be wrapped in a try/catch block... this is part of the reas
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\begin{frame}[fragile,t]
+\frametitle{}
+\includegraphics[scale=0.5]{yoda.jpg}
+
+Many (most?) C++ code bases \emph{do not use exceptions}, including
+Google's, and including ours.
+
+Writing code \emph{as if} in the presence of exceptions makes code better.
+
+\end{frame}
 
 \begin{frame}[fragile,t]
 \frametitle{A Rant}
@@ -133,7 +143,7 @@ void foo() {
 }
 \end{verbatim}}
 \pause
-\Emph{This Isn't Java!}
+\Emph{This isn't Java, so stop it.}
 
 \end{frame}
 
@@ -172,6 +182,7 @@ void foo() {
 \begin{frame}[fragile,t]
 \frametitle{Why dynamic memory at all?}
 \center{When must we hit the heap?}
+\vskip 6pt
 \pause{}
 
 \begin{enumerate}
@@ -186,7 +197,7 @@ Widget* widgets = new Widget[n];
 \item We don't know what type we need until runtime (polymorphism)
 {\scriptsize \begin{verbatim}
 class DooDad : public Widget {};
-class Doohickey : public DooDad {};
+class DooHickey : public DooDad {};
 class Gadget : public Widget{}
 class Thingy : public Gadget{};
 
@@ -200,5 +211,5 @@ Widget* widget = WidgetFactory(...);
 \vskip 12pt
 \pause{}
 
-\center{\Emph{Dynamically allocate only when absolutely necessary}}
+\center{ \Emph{Dynamically allocate only when absolutely necessary} }
 \end{frame}

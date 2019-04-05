@@ -2,14 +2,15 @@
 \frametitle{Standard Smart Pointers}
 \begin{description}
 \vskip 12pt
-\item [auto\_ptr]  \textcolor{red}{DEPRECATED}
+\item [std::auto\_ptr]  \textcolor{red}{DEPRECATED}
 \vskip 12pt
-\item [unique\_ptr] Single Ownership
+\item [std::unique\_ptr] Single Ownership
 \vskip 12pt
-\item [shared\_ptr] Shared Ownership
+\item [std::shared\_ptr] Shared Ownership
 \vskip 12pt
-\item [weak\_ptr] Breaks ownership cycles
-\vskip 12pt
+\item [std::weak\_ptr] Breaks ownership cycles
+\vskip 24pt
+\item [std::vector] A pointer so smart you don't even notice it is one (!)
 \end{description}
 \end{frame}
 
@@ -18,24 +19,25 @@
 
 \begin{frame}[fragile,t]
 \frametitle{auto\_ptr}
-An early attempt to provide single ownership semantics.
+An early attempt to provide single ownership semantics.  Copying
+transfers ownership.
 {\scriptsize\
 \begin{verbatim}
 
 auto_ptr<int> a = new int(5);
 
-auto_ptr<int> b;
+auto_ptr<int> b = nullptr;
 
-b = a;  // changes a!
+b = a;        // changes a!
 
-a == NULL; // now true!
+a == nullptr; // now true!
 
 \end{verbatim}}
 
 \begin{itemize}
-\item Destructive copy!
-\item Wonky semantics -- can't use in standard containers, don't act
+\item Destructive copy! Wonky semantics -- can't use in standard containers, don't act
   like anything we have a good model for.
+\item (Non-value semantics are always wonky -- avoid)
 \item Desired behavior impossible without C++11 move semantics
 \end{itemize}
 \vskip 12pt
@@ -54,11 +56,46 @@ a == NULL; // now true!
 
 With the advent of move semantics, we now have a proper solution.
 
+\center{\Emph{std::unique\_ptr}}
+
+\begin{itemize}
+\item Provides \Emph{single ownership} of the pointer it holds.
+\item Takes ownership on construction
+\item \texttt{delete}s the pointer on destruction
+\item Provides pointer-like syntax in all cases
+\begin{itemize}
+  \item initialize with dynamically allocated object
+  \item Deref with \texttt{*} and \texttt{->}
+  \item Explicit conversion to bool
+  \item Can compare to nullptr
+\end{itemize}
+\item Moveable but non-copyable
+\begin{itemize}
+  \item Non-copyable: maintains single ownership
+  \item Moveable: explicit ownership transfer
+\end{itemize}
+\item Little or no memory or runtime overhead compared to a raw pointer.
+\end{itemize}
+
+\end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr basics}
+
+\begin{itemize}
+\item Use like a pointer
 {\scriptsize\begin{verbatim}
 #include <memory>
 
 unique_ptr<int> i(new int(4));
 cout << "i " << *i << endl;     // Use just like normal pointer
+
+\end{verbatim}}
+\item Moveable, but not copyable
+{\scriptsize\begin{verbatim}
 
 unique_ptr<int> j;
 
@@ -66,6 +103,30 @@ j = i;                          // compile error (use of deleted fn)
 
 j = std::move(i);               // OK, *j == 4
 
+assert (i == nullptr);          // true
+
+\end{verbatim}}
+\item Moved-from unique\_ptr is null, treat like all moved-from
+  objects: \Emph{with care!}  
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr other operations}
+
+\begin{itemize}
+\item \texttt{get} gets a non-owning copy of the pointer
+{\scriptsize\begin{verbatim}
+int* nonowner = j.get()         // get the pointer, keep ownership
+
+\end{verbatim}}
+\item \texttt{release} return gets an \emph{owning} pointer, and
+  relinquishes ownership
+
+{\scriptsize\begin{verbatim}
 int* nonowner = j.get()         // get the pointer, keep ownership
 int* owner = j.release();       // release ownership, now j==nullptr
 
@@ -73,17 +134,10 @@ j = owner;                      // take ownership of existing ptr
 
 j.reset();                      // delete ptr, now j==nullptr
 \end{verbatim}}
-\pause{}
-\begin{itemize}
-\item Moveable, but not copyable
-\item Moved-from unique\_ptr is ``NULL'', but don't do that!
-\item Generally use just like a pointer
-\begin{itemize}
-  \item Deref with ``*''
-  \item Explicit conversion to bool
-  \item Can compare to nullptr
 \end{itemize}
-\end{itemize}
+
+Provides the safest (and most restrictive) ownership model.  Prefer
+\texttt{unique\_ptr} when possible.
 
 \end{frame}
 
@@ -111,7 +165,6 @@ ViewWidgetPtr  (wptr.get()); // OK, the pointer is const
 
 MungeWidgetPtr (wptr.get());  // Danger?
 \end{verbatim}}
-
 \begin{itemize}
 \item Be careful when passing the pointer to legacy functions -- make sure
 they're not taking ownership.
@@ -131,13 +184,11 @@ they're not taking ownership.
 \framesubtitle{Herb Sutter, GotW \#91}
 What do these mean?
 {\scriptsize\begin{verbatim}
-void f( widget& );                    (a)
-void f( widget* );                    (b)
-void f( unique_ptr<widget> );         (c)
-void f( unique_ptr<widget>& );        (d)
-void f( const unique_ptr<widget>& );  (e)
-\end{verbatim}
-}
+void f( widget& );                    (a)    f(*wptr)
+
+void f( widget* );                    (b)    f( wptr.get())
+                                          or f( wptr.release())
+\end{verbatim}}
 \begin{itemize}
 \pause{}
 \item (a) is preferred -- observe or process the object directly
@@ -146,25 +197,56 @@ void f( const unique_ptr<widget>& );  (e)
 \begin{itemize}
   \item Legacy or OS (C code -- no references!)
   \item Observing or processing \emph{the pointer} (taking ownership,
-    reseating, etc)
+    reseating, etc), possibly a sink: f is a pointer-to-widget consuming function that takes
+  responsibility for deleting the pointer.
   \item Using the NULL ptr as a sentinel value, or the value is optional
   \item Incorrect (Repent ye C programmers!)
 \end{itemize}
-\pause{}
-\item (c) is a sink.  (Pass by value...) This is a widget-consuming
-  function (that accepts raw-pointers).  The old-fashioned way is:
-{\scriptsize\begin{verbatim}
-void bad_sink( widget* p); // will destroy p. PLEASE READ THIS
-\end{verbatim}
-}
-\pause{}
-\item (d) is for reseating an existing unique\_ptr 
-\pause{}
-\item (e) is a mistake; there's never any reason to do this.
 \end{itemize}
+Be careful with C-style (raw pointer) interfaces, the ownership of the
+pointer might not be clear, and many times all you have is a comment somewhere:
+{\scriptsize\begin{verbatim}
+void scary_widget_sink( widget* p); // will destroy p. PLEASE READ THIS
+\end{verbatim}}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% herb sutter, 12:12 - 21:50
+
+\begin{frame}[fragile]
+\frametitle{unique\_ptr as function argument (the plot thickens)}
+\framesubtitle{Herb Sutter, GotW \#91}
+
+What do these mean?
+
+{\scriptsize\begin{verbatim}
+void f (unique_ptr<widget> );         (c)    f( wptr) error!
+void f( unique_ptr<widget>&&);        (d)    f( std::move(wptr))
+void f( unique_ptr<widget>& );        (e)    f( wptr)
+void f( const unique_ptr<widget>& );  (f)    f( wptr)
+\end{verbatim}}
+
+\begin{itemize}
+\item (c) is a compile-time error -- you can't pass a unique\_ptr by
+  value because you can't make copies.
+\item (d) is also a sink:  f is a unique\_ptr-to-widget-consuming
+  function, wptr becomes null.
+\pause{}
+\item (e) is for reseating an existing unique\_ptr (when you get it
+  back, it might be pointing to something else)
+\pause{}
+\item (f) is a mistake; there's never any reason to do this.  If
+  you're not participating in an ownership transaction, just observe
+  the object as per (a).
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \begin{frame}[fragile]
 \frametitle{unique\_ptr custom deleter}
@@ -186,17 +268,26 @@ object is deleted.
 
 \end{frame}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \subsection{shared\_ptr}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}[fragile]
 \frametitle{shared\_ptr}
+\Emph{std::shared\_ptr} provides a more common model of ownership
+(similar to Python and Java, but with better performance).
+
 \begin{itemize}
 \item Shared ownership -- make copies and send 'em out into the big wide
 world.
 
 \item Reference counted -- memory released only when the last observer
-goes out of scope
+goes out of scope.
 
 \item Provides the C++ equivalent of a garbage collector, with
   deterministic behavior.
@@ -252,7 +343,7 @@ p1.reset();                    // drops refcount by 1, calls dtor if 0
   reputation for bad runtime performance.
 \vskip 12pt
 \pause{}
-\item Beware of circular references!
+\item Beware of circular references (see \texttt{weak\_ptr} discussion below)
 \end{itemize}
 \end{frame}
 
@@ -263,24 +354,25 @@ p1.reset();                    // drops refcount by 1, calls dtor if 0
 \framesubtitle{Herb Sutter, GotW \#91}
 What do these mean?
 {\scriptsize\begin{verbatim}
-void f(       shared_ptr<widget> );   (f)
-void f(       shared_ptr<widget>& );  (g)
-void f( const shared_ptr<widget>& );  (h)
+void f(       shared_ptr<widget> );   (g)
+void f(       shared_ptr<widget>& );  (h)
+void f( const shared_ptr<widget>& );  (i)
 \end{verbatim}
 }
 \begin{itemize}
 \pause{}
-\item (f) takes shared ownership (it's taking a copy, and that's what
+\item (g) participates in shared ownership (it's taking a copy, and that's what
   copying a shared\_ptr means)
 \pause{}
-\item (g) manipulates the shared\_ptr; possibly reseating \emph{this}
+\item (h) manipulates the shared\_ptr; possibly reseating \emph{this}
   one.  Not commonly used, I couldn't find many good examples.
 \pause{}
-\item (h) Hmm... means I \emph{might} make a copy, but I'm not sure yet?
+\item (i) Very uncommon, probably a mistake.  Possibly this means f \emph{might} make a copy?
 \end{itemize}
 \vskip 12pt
 \pause{}
 Remember, if you're interested in just the widget, \Emph{take just the widget}.
+
 
 \end{frame}
 
@@ -312,12 +404,16 @@ auto sp = make_shared<Camel>(...);
 \begin{itemize}
 \item Only type the type once : ``DRY'' (Don't Repeat Yourself) principle
 \vskip 6pt
+\item Performance: make\_shared can be clever about memory allocation
+  and usage, frequently cuts the construction time in half.  See
+  Meyers ``Effective Modern C++'' for an excellent discussion.
 \item Exception safety:
 {\scriptsize\begin{verbatim}
 processWidgetCamel( unique_ptr<Widget>(new Widget()),
                     shared_ptr<Camel> (new Camel()) );
 \end{verbatim}}
-may leak if either constructor throws.
+may leak if either constructor throws (under arcane circumstances, I
+think banished in \CC17).  
 \vskip 6pt
 \item We are all used to being twitchy about new/delete.  
 \begin{itemize}
@@ -331,6 +427,99 @@ may leak if either constructor throws.
 
 \end{frame}
 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{std::vector}
+
+\begin{frame}[fragile]
+\frametitle{std::vector as a smart pointer?}
+\framesubtitle{what madness is this?}
+
+\texttt{std::vector} doesn't have a pointer-like interface, but is the
+gold standard of RAII-design classes.
+
+\begin{itemize}
+
+\item Consider: \emph{pointers are confusing, complex, and difficult
+  to reason about}.  Hiding that complexity behind value semantics is
+  a huge win.
+
+\item Growing and shrinking as needed is handled automatically and safely.
+
+\item Control of memory is still provided via clear(), resize(), and
+  reserve() functions.
+
+\item Access to the raw C-style array is provided via the data()
+  function.
+\begin{itemize}
+  \item Similar to the smart pointers' \texttt{get} function, this can
+    be used (with care) in legacy C-style interfaces.
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{std::vector to the rescue}
+\framesubtitle{no joke}
+Straight out of the HEMI code base: old way (left), std::vector (right):
+\begin{columns}[t]
+\column{.5\textwidth}
+{\tiny\begin{verbatim}
+const void* ZlibMem::compress( const void* buffer,
+                               size_t* msgBytes )
+{
+  if (!buffer || !msgBytes || (*msgBytes == 0)) {
+    LOG( Logger::ERROR, "long error msg" );
+    return NULL;
+  }
+// get size needed for compress buffer and realloc if needed
+  size_t sizeNeeded = compressBound( *msgBytes );
+  if (sizeNeeded > compressBufferSz_) {
+    compressBuffer_ = 
+      (Bytef*)realloc( compressBuffer_, sizeNeeded );
+    if (compressBuffer_)
+      compressBufferSz_ = sizeNeeded;
+    else {
+      compressBufferSz_ = 0;
+      LOG( Logger::ERROR, realloc failed." );
+      return NULL;
+    }
+  }
+
+\end{verbatim}}
+\pause{}
+\column{.5\textwidth}
+{\tiny\begin{verbatim}
+const void* ZlibMem::compress(const std::vector<char>& buffer)
+
+{
+  if (buffer.empty()) {
+    LOG( Logger::ERROR, "long error msg''" );
+    return nullptr;
+  }
+
+  size_t sizeNeeded = compressBound(buffer.size() );
+  try {
+    compressBuffer_.resize(sizeNeeded);
+  }
+  catch (std::bad_alloc) {
+     LOG( Logger::ERROR, "realloc failed.." );
+     return nullptr;
+  }
+
+ // <-- memory leak here!  Would you have noticed?
+
+\end{verbatim}}
+\end{columns}
+\pause{}
+
+When maintaining old code, hunt down and kill C-style raw arrays
+\Emph{with prejudice} and replace with \texttt{std::vector} or
+\texttt{std::array}!
+
+\end{frame}
 
 
 

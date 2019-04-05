@@ -15,6 +15,8 @@
 \pause{}
 \item weak\_ptr Breaks ownership cycles
 \pause{}
+\item ``Dynamic array'' in \CC is spelled \texttt{std::vector} \Emph
+  {and no other way}.
 \item \Emph{``new'' and ``delete'' are banished from application code!}
 \end{itemize}
 \vskip 12pt
@@ -24,8 +26,8 @@ We have effectively ``Perfect'' garbage collection.
 \begin{itemize}
 \item No way to leave scope without cleaning up
 \item Completely deterministic
-\item Memory held for a ``safely minimial'' time (only as long as code can
-  actually access it)
+\item Memory held for a ``safely minimial'' time (exactly as long as
+  any other entity can access it).
 \item No more overhead than the equivalent garbage collector (and
   probably much much less)
 \end{itemize}
