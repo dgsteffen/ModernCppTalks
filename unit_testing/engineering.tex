@@ -1,0 +1,94 @@
+\section{Engineering and Management Concerns}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Software Engineering Considerations}
+Code is hard or impossible to unit test \emph{unless designed with
+  this in mind}.
+\begin{itemize}
+\item Testability is just as important as any other design
+  consideration
+\item Experience, across the industry and personally, shows that
+  designing for testability \emph{improves design}.  (Examples to
+  follow).
+\item Experience across the industry shows that writing the test
+  \emph{before} writing the code improves design.  This is the heart
+  of TDD (Test-Driven Development).
+\item Black-box testing is always preferred over white-box testing.
+\item \Emph{Test code must be treated as system code}.  It's not a
+  second-class citizen.
+\begin{itemize}
+  \item Test code must be as clean, elegant, and maintainable as
+    system code.
+  \item Test harness, frameworks, and tooling must be designed as
+    carefully as anything else
+  \item Test code must be code-reviewed just as intently, and held to
+    the same high standards, as system code.
+  \item \emph{Test code is what lets you sleep soundly at night.
+      Treat it accordingly.}
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Management Considerations}
+\begin{itemize}
+  \item Testing takes time.
+  \item Writing unit tests for exisiting code that
+    probably already works is \Emph{incorrectly} considered to be a
+    zero-return-on-investment activity.
+    \begin{itemize}
+      \item ROI might be small but is not
+        zero. Consider that without unit tests....
+      \item You can't fix bugs in that old code \emph{reliably} 
+      \item You can't refactor that old code \emph{reliably}
+      \item You can't prove that the code continues to work across
+        changes to the code base (or compiler, or deliver OS, or...)
+        \item You can not \Emph{provably} maintain your code base without them.
+    \end{itemize}
+  \item Without unit tests, your code base \emph{is not maintainable}
+    without constant activity from superheroes.
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Management Considerations}
+\framesubtitle{part 2: religion}
+
+
+Problem: testing takes time, money, schedule, etc. but
+prevents problems later.  How do you measure the time / schedule slip
+/ budget overrun \emph{that never happens}?  
+\vskip 6pt
+You can't.
+\vskip 6pt
+
+So is this a kind of a religion?  (No, because we have vast amounts of
+evidence.)
+
+\begin{itemize}
+
+\item Testing takes a lot of time, in predictable amounts, at predictable
+and controllable times.
+
+\item Tracking down mysterious bugs takes unknowable amounts of time,
+  at unpredictable moments, usually right before a release.
+
+\end{itemize}
+
+Balancing testing vs budget vs schedule is always hard.  Hold the line.
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Software Engineering Considerations}
+%% \end{frame}

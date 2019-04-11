@@ -1,0 +1,181 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Notes on ``All Your Tests are Terrible...''}
+\begin{frame}[fragile,t]
+\frametitle{Properties of good tests}
+
+\begin{itemize}
+\item \Emph{Unit tests must be easy to run (one button push).}
+\item \Emph{Unit tests must return an unambiguous pass/fail result.}
+\item Correctness : it tests what it's supposed to test (and
+  nothing else)
+\item Readability :
+\begin{itemize}
+  \item Tests don't have tests, so they \emph{must be correct by inspection}
+  \item Should read like a novel: setup, action, conclusion, and a happy ending
+\end{itemize}
+\item Completeness : tests cover the whole API, and only the API
+  \begin{itemize}
+  \item including edge cases, \emph{particularly} including edge cases
+  \item excluding stuff that isn't under test
+  \end{itemize}
+\item Demonstrability : best documentation of how to use the API.
+\item Resilience : ``the notion that your tests should only fail if the
+  thing they were actually intended to demonstrate became false, and
+  should fail \emph{for no other reason}''
+\item \Emph{Test code is just as important as system code}
+\end{itemize}
+
+"Note that we didn't call these rules, we did call them goals of good
+tests and I don't know that you can necessarily always get all of
+them.''
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{WRITE TESTS}
+\framesubtitle{$\approx 4:00$}
+\begin{itemize}
+\item good tests are 100\% better than bad tests
+\item even bad tests are 10000\% better than no tests
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Mocks}
+\framesubtitle{$\approx 7:55$} 
+(from Wikipedia)
+\begin{itemize}
+\item {\bf Mock Objects} are simulated objects that mimic the behavior of real objects in controlled ways. 
+\end{itemize}
+
+Technically, a Mock is an object that simulates external components
+that are changed by the operation in question.
+\vskip 6pt
+Things that simulate inputs are technically ``stubs'' or something,
+but everyone calls them mocks anyway.
+\vskip 6pt
+Note: mocks need to be tested just like everything else
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Locality}
+\framesubtitle{$\approx 11:50$}
+Readability: make it clear to the reader why the result is correct.
+\vskip 6pt
+This is an example of a more general code smell: \Emph{lack of locality}
+\vskip 6pt
+\begin{itemize}
+\item {\bf Locality}: the ability to understand the code without
+  looking elsewhere.
+\end{itemize}
+\vskip 6pt 
+Don't assume the reader knows about the other code, has
+read the other code, or is going to go look right now.
+
+\vskip 6pt
+\begin{center}
+\Emph{Tests don't have tests, so correct-by-inspection is all we have
+  to prove our tests are correct.}
+\end{center}
+\end{frame}
+
+%13:00 test fixtures
+%16:30 edge cases, 19 important
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Black box tests}
+\framesubtitle{$\approx 21:00 - 33:00$}
+Definitions:
+\begin{itemize}
+  \item {\bf Black-box testing:} tests use only the public
+    interface of the test article.  (The test article is a ``black box'' you can't see
+    inside of.)
+  \item {\bf White-box testing:} tests access the internal state of
+    the test article. (You can ``see inside the box'').  Also
+    ``clear-box'', ``glass-box'', etc.
+\end{itemize}
+\vskip 6pt
+Black box testing is much preferred over white-box, to the degree that
+many people say ``Black-box is the only way to test'' and ``White-box
+testing is a mistake''.
+
+\vskip 6pt
+That's overstating the case.  Black-box is better, but not always
+doable. We'll see how to white-box test below,
+and discuss the pros and cons.
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test Result Data}
+\framesubtitle{$\approx 29:00$}
+Hyrum and Titus make fun of the ``run your code to generate the output
+that you verify your code against''.  But...
+\begin{itemize}[<+->]
+\item We did exactly this on OCEANA as a system test -- run the whole
+  thing, get output, save it to a ``canon'' file, compare with that.
+\item Note that this does not test that the system is correct, just
+  that it hasn't changed.
+\item This is \emph{still} really useful when refactoring or
+  optimizing.
+\item And.... \emph{it found a bug}.  The output didn't compare
+  roughly 1/3 times.
+\item We had nondeterministic behavior, and who knows how long it
+  would have taken us to notice.
+\item (Look up ``strict weak ordering'' in sorting predicates)
+\end{itemize}
+\pause{}
+\Emph{Bad tests are still 10000\% better than no tests.}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Sustainability, and Properties of good tests}
+\framesubtitle{$\approx 44:58 - 47:00$}
+
+
+\begin{itemize}
+\item Again: write tests, bad tests are better than no tests
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Culture}
+\framesubtitle{$\approx 57:25$}
+\begin{itemize}
+\item Tests are only part of the solution (Defence in depth)
+\begin{itemize}
+\item code review
+\item proper testing
+\item static analysis
+\item dynamic analysis
+\item hardening code
+\item canarying
+\item production monitoring
+\end{itemize}
+
+\item Culture
+\end{itemize}
+
+
+\end{frame}
+

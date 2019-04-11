@@ -1,0 +1,190 @@
+\section{Introduction}
+
+\begin{frame}[fragile]
+\frametitle{References}
+\framesubtitle{E.G., where Dave stole all this material from}
+
+\begin{itemize}
+\item CppCon 2015: T. Winters \& H. Wright ``All Your Tests are Terrible...''
+  \url{https://www.youtube.com/watch?v=u5senBJUkPc}
+  \Emph{The} talk to start from.  The examples are in \CC but the
+  content applies to all languages.
+\vskip 6pt
+\item ``Test Smells and Fragrances Kevlin Henney''
+  \url{https://youtu.be/3frRGQGiPuc} (bad audio
+  quality, the talk is a little slow, but it's got good content)
+
+%% (also 
+%% Structure and Interpretation of Test Cases - Kevlin Henney
+%% \url{https://www.youtube.com/watch?v=tWn8RA_DEic}
+
+
+\item GOTO 2013: Roy Osherove ``JS Unit Testing Good Practices \& Horrible Mistakes''
+\url{https://www.youtube.com/watch?v=iP0Vl-vU3XM}  (He has many talks,
+I think this is the best)
+
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Definitions}
+\framesubtitle{}
+``Unit Testing'' is testing at the ``smallest unit of
+functionality''.  For software engineers, these 
+``smallest units'' are
+\begin{itemize}
+\item functions (or sets of related functions)
+\item member functions (or classes)
+\end{itemize}
+
+In both cases, we are testing at the individual ``chunk'' of
+executable code, the function or member function level.
+\vskip 6pt
+The term can be used to mean different things in other areas of
+engineering, but this definition is standard in software.
+
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Frameworks}
+\framesubtitle{}
+A unit test framework is a library (or language facility) that
+provides unit testing features. Some languages have a framework built
+in (C\#, Python(?)), some have one standard framwork (Java uses
+JUnit), \CC has many:
+\begin{itemize}
+\item Google Test (GTest), probably the most commonly used.
+\item Boost.Test (part of the Boost library), also widely used.
+\item Catch2 (``Catch''), newer ``more advanced'' framework, still
+  young but rapidly gaining market share
+\end{itemize}
+\vskip 6pt
+GTest is the standard framework in use at SciTec.  OCEANA is using
+Catch2, SOFA will do a trade study.
+\vskip 6pt
+\begin{center}
+\Emph{Unit testing frameworks make it easy to write unit tests; they reduce
+the friction involved, provide consistent testing facilities, and
+enforce consistent testing practices.}
+\end{center}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Examples}
+\framesubtitle{}
+Different frameworks use different terminology, but usually all the
+tests for a unit are a {\bf test suite}, and the individual tests in a
+suite are {\bf test cases}, each of which has multiple assertions.
+
+{\scriptsize\
+\begin{verbatim}
+int factorial(int n) { return n*factorial(n-1); } // <-- unit under test
+
+// Test case for normal operations
+TEST( FactorialTestSuite, NormalCases ) {  
+
+  ASSERT_TRUE ( factorial(1) == 1 );  
+  ASSERT_EQ   ( factorial(2) ,  2 );  
+  ASSERT_EQ   ( factorial(8) , 40320);
+}
+
+// Test case for failure modes and edge cases
+TEST( FactorialTestSuite, FailureModes ) {
+
+  ASSERT_THROW ( factorial(-1) );
+  ASSERT_EQ    ( factorial(78), std::numeric_limits<int>::max() );
+}
+\end{verbatim}}
+
+A test suite might test a single complex function, or a collection of
+related functions.
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Unit testing classes}
+Testing a class is more interesting (and we'll spend time on this later)
+{\scriptsize\
+\begin{verbatim}
+
+// The class to test                       // Test suite
+
+class Cup {
+public:                                    TEST( CupTests, CupCtor) {
+                                               Cup c;
+  Cup(); // new cups are empty                 ASSERT_TRUE( c.isEmpty() );
+                                            }
+  bool fill();                            
+                                           TEST( CupTests, CupFill) {
+  bool drink();                                Cup c;
+                                               ASSERT_TRUE( c.fill() );
+  bool isEmpty();                              ASSERT_FALSE( c.isEmpty() );
+                                            }
+};
+\end{verbatim}}
+\vskip 6pt
+
+
+Usually, a test suite corresponds to a single header file.  Usually,
+this means one function or class, or a set of closely related
+functions and classes.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile]
+%% \frametitle{General Comments}
+
+%% General comments before diving in to the video:
+
+%% \begin{itemi
+
+%% % 5 properties
+
+%% - easy to write
+%% - easy to run
+%% - easy to write
+%% - unambigous output
+%% - easy to write
+%% - easy to figure out what went wrong
+%% - easy to write
+
+
+%% - test code like system code
+
+
+%% 4:00 write tests
+%%  - good tests are 100% better than bad tests
+%%  - even bad tests are 10000% better than no tests
+
+
+%% pillars of software engineering:
+
+%% - code reviews
+%% - testing (unit)
+%% - vc & ci/cd (version the software, test all the time)
+
+%% 9:00 ish (mocks)
+
+%%   - note, mocks should be tested!  But that's a separate test suite
+
+%% 9:17 readers of tests -- to ... correct by inspection, local information and data and reasoning
+%% don't assume reader has/will go read other documentation.  This assumes the docs exist.
+%% plus devs never read that stuff.  Make a narrative.
+
+%% talk about fixtures 13:00
