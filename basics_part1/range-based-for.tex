@@ -1,0 +1,167 @@
+
+\subsection{Range-based for} \lyxframeend{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Range-based for, begin, end}
+
+\begin{columns}[t]
+\column{.6\textwidth}
+
+\begin{itemize}
+\item  <1->{\scriptsize\begin{verbatim}for(auto i = v.begin(); i != v.end() ++i)   \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}   total += *i; \end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim}sort(v.begin(), v.end());  \end{verbatim}}
+\item<3->{\scriptsize\begin{verbatim}sort(&a[0], &a[1]+sizeof(a)/sizeof(a[0]));  \end{verbatim}}
+
+\item<4-> {\scriptsize
+\begin{verbatim}
+vector<int> v;     // which is faster?
+for( const auto& i : v)  // #1
+  ..
+for( const long& i : v)  // #2
+  ..
+\end{verbatim}
+}
+
+\end{itemize}
+
+\column{.4\textwidth}
+\begin{itemize}
+\item  <1->{\scriptsize\begin{verbatim}for (const auto& d : v )  \end{verbatim}}
+\item[]<1->{\scriptsize\begin{verbatim}   total += d; \end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim}sort(begin(v), end(v));  \end{verbatim}}
+\item<3->{\scriptsize\begin{verbatim}sort(begin(a), end(a));  \end{verbatim}}
+\item<5-> \#1 is faster: the type mismatch \emph{forces} a copy on each iteration.
+\end{itemize}
+
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Range-based for, details}
+
+Some details: given a \texttt{vector<int> v} ...
+
+
+\begin{columns}[t]
+\column{.6\textwidth}
+
+\begin{itemize}
+\item<1-> {\scriptsize \begin{verbatim}
+for( const auto& i : v)
+  ..
+\end{verbatim}}
+\item<2-> Faster -- 'auto' makes the right type
+\end{itemize}
+
+\column{.4\textwidth}
+\begin{itemize}
+
+\item  <1->{\scriptsize\begin{verbatim}
+for( const long& i : v)
+  ..
+\end{verbatim}
+}
+\item<2-> Slower, we have to make copies
+\end{itemize}
+
+\end{columns}
+
+
+\visible<3->{\Emph{If we take the 'const' off...}}
+
+\begin{columns}[t]
+\column{.6\textwidth}
+
+\begin{itemize}
+\item<4-> {\scriptsize \begin{verbatim}
+for( auto& i : v)
+  i *= 2;
+\end{verbatim}
+}
+\item<5-> Fine, modifies the vector
+\end{itemize}
+
+\column{.4\textwidth}
+\begin{itemize}
+
+\item  <4->{\scriptsize\begin{verbatim}
+for( long& i : v)
+  i *= 2;
+\end{verbatim}
+}
+\item<5-> Won't Compile! Can't bind a non-const ref to a temporary.
+\end{itemize}
+
+\end{columns}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile]
+\frametitle{Would you ever want to make temporaries?}
+\framesubtitle{The Charge of a Thousand Anonymous Rhinos}
+{\scriptsize \begin{verbatim}
+class Rhino {
+  Rhino(int weight);
+  void Charge() const;  // has side effects
+  // big, memory-consuming member data here
+};
+\end{verbatim}}
+\begin{itemize}
+\item Suppose we have a vector<int> v, with 1000 entries (Rhino weights).
+\item Suppose Rhinos take up a lot of space, so we don't want a
+  vector<Rhino> with 1000 elements
+\end{itemize}
+
+\pause{}
+
+{\scriptsize \begin{verbatim}
+for (const auto& i : v)   // Loop through vector
+{
+  Rhino bob(i);           // Make short-lived Rhino
+  bob.Charge();           // Charge!
+}
+\end{verbatim}
+}
+
+\pause{}
+
+Is the same as
+
+{\scriptsize \begin{verbatim}
+for (const Rhino& bob : v)  // Loop through vector making Rhino temps
+{                           // with no explicit variable creation
+  bob.Charge();             // Charge!
+}
+\end{verbatim}
+}
+
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{Range-based for loops: Advice}
+
+\begin{itemize}[<+->]
+
+\item \Emph{Prefer range-based loops when possible}
+  \begin{itemize}
+    \item They more clearly express intent.
+  \item Generally, this means ``when looping over the whole container''.
+  \end{itemize}
+
+\item \Emph{Prefer free-function begin/end} : they're more adaptable
+
+\item \Emph{ And use auto! }
+\end{itemize}
+
+\end{frame}

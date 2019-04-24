@@ -1,0 +1,64 @@
+\subsection{nullptr}
+\lyxframeend{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile]
+\frametitle{nullptr : the problem}
+
+The problem: 0 is both an integer constant and a null pointer
+constant.
+
+{\scriptsize
+\begin{verbatim}
+f(int);     // #1
+f(char*);   // #2
+
+f(0);       // unambiguously 1
+f(NULL);    // same
+
+f(char*(0)) // #2
+
+\end{verbatim}
+}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{nullptr}
+
+\begin{itemize}
+\item a reserved word
+\item a constant rvalue of type \texttt{nullptr\_t}
+\item its address cannot be taken
+\item has no representation in memory
+\item implicit conversion to any pointer or pointer-to-member
+\item no implicit conversions to anything else
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{examples}
+{\scriptsize
+\begin{verbatim}
+f(0);       // unambiguously f(int)
+f(nullptr); // unambiguously f(char*)
+
+char* c = nullptr;
+(c == nullptr)  // evaluates to true
+(c == 0      )  // ditto, '0' rules don't change
+
+if (nullptr); // error, no conversion to bool
+
+char* ch4 = expr ? 0 : nullptr; // error, incompatible types
+
+\end{verbatim}
+}
+\uncover<2->{\textcolor{red}{Use it everywhere, with no reservations}.}
+
+
+\uncover<3->{\textcolor{red}{unless it exposes broken code you don't want to fix
+  right now}} (and apparently it has the tendency to do exactly this).
+
+
+
+\end{frame}
