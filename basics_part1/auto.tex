@@ -17,7 +17,7 @@
 \item[]<1->\begin{verbatim}      = m.begin()\end{verbatim}
 \item<1->\begin{verbatim} const Vector d = foo() \end{verbatim}
 \item<1->\begin{verbatim} singleton& s = singleton::instance() \end{verbatim}
-\item  <1->\begin{verbatim} binder2nd<greater> x   \end{verbatim}
+\item  <1->\begin{verbatim} binder2nd<greater> f   \end{verbatim}
 \item[]<1->\begin{verbatim}             = bind2nd(greater(),42) \end{verbatim}
 \end{itemize}
 }
@@ -29,7 +29,7 @@
 \item<2->\begin{verbatim} auto const d = foo() \end{verbatim}
 \item<2->\begin{verbatim} auto& s = singleton::instance() \end{verbatim}
 \item<2->\begin{verbatim} auto x = bind2nd(greater(),42) \end{verbatim}
-\item<3->\begin{verbatim} auto x = [](int i){return i > 42;} \end{verbatim}
+\item<3->\begin{verbatim} auto f = [](int i){return i > 42;} \end{verbatim}
 \end{itemize}
 }
 \end{columns}
@@ -47,26 +47,43 @@
 \item Unutterable types:
   \begin{itemize} %2
     \item Lambdas: what is the type of {\scriptsize\texttt{  [](int i)\{return i > 42;\}}} ?
-    \item \emph{Why would you do that?}  E.G., to
-      be consistent with ordering:
+    \item \emph{Why would you do that?}
+\begin{itemize}
+\item To reuse a lambda (for example, multiple containers with
+  consistent ordering):
 {\scriptsize
 \begin{verbatim}
 auto my_order = [](int i, int j){return i > j;}
 set<int,       my_order> set_ordered_my_way;
 map<int, char, my_order> map_ordered_the_same_way
-\end{verbatim}
-}
+\end{verbatim}}
+\item Increasing momentum towards a consistent function syntax:
+{\scriptsize \begin{verbatim}
+int process(int arg);                 // C++98
 
+auto process(int arg) -> int;         // C++11 trailing return type
+
+auto process = [](int arg)->int {...} // lambda
+\end{verbatim}}
+
+\end{itemize}
   \end{itemize} %2
 \vskip 12pt
 \item Implementation-defined types: there are a few here and there.
-
+\begin{itemize}
+  \item \texttt{size\_t} is implementation defined, but consistently
+    named
+  \item Occasionally an interface will have such a type that has no
+    consistent name; \texttt{auto} is the only way to portably declare one
+\end{itemize}
 \end{itemize} %1
 
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%% auto 2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \begin{frame}[fragile]
 \frametitle{When \emph{can't} you use auto?}
 
@@ -93,16 +110,144 @@ Base* my_ptr = derivedFactory();
 \item When you don't want an ephemeral / proxy type.
 {\scriptsize
 \begin{verbatim}
-auto m = my_vector_of_bool[5];
-auto m = Eigen::Matrix<..> * Eigen::Matrix<..>;
-auto x = { 42 };
+std::vector<bool> my_vector_of_bool;
+auto m = my_vector_of_bool[5];         // not a bool!
+
+Eigen::Matrix<...> A, B, C;
+auto m = A*B+C                        // not a Matrix!
+
+auto x = { 42 };                      // std::initializer_list
+
 \end{verbatim}
 }
+\vskip 6pt
 
 %\end{itemize} %2
 
 \end{itemize} %1
 \end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{When \emph{can't} you use auto?}
+\frametitle{... ahh, but you can!}
+All the previous examples can be fixed with explicit types:
+\begin{itemize}
+\item When you want an explicit type conversion:
+{\scriptsize
+\begin{verbatim}
+int foo();
+auto i = long(foo());    // rather than long i = foo();                            
+\end{verbatim}
+}
+\vskip 6pt
+%  \end{itemize} %2
+
+\item When you want polymorphism:
+{\scriptsize
+\begin{verbatim}
+class Base {};
+class Derived : public Base {};
+Derived* derivedFactory();
+
+auto my_ptr = Base*(derivedFactory()); 
+
+\end{verbatim} }
+\vskip 6pt
+\item When you don't want an ephemeral / proxy type.
+{\scriptsize
+\begin{verbatim}
+std::vector<bool> my_vector_of_bool;
+
+auto m = bool(my_vector_of_bool[5]);  // it's a bool
+
+Eigen::Matrix<...> A, B, C;
+auto m = Eigen::Matrix<...>(A*B+C);   // it's a Matrix
+
+auto x = 42 ;                         // int (auto and brace
+                                      // initializers interact)
+
+\end{verbatim}
+}
+\vskip 6pt
+
+%\end{itemize} %2
+
+\end{itemize} %1
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Auto Style}
+
+\begin{itemize}[<+->]
+\item Some would say the previous slide is silly; just don't use auto.
+\item Consider Sutter's talk, at about the 28 minute mark.  His point
+\item {\bf Deduce to track} if you don't need to commit to a type:
+{\scriptsize \begin{verbatim}
+const char* s = "Hello";            auto s = "Hello";
+Widget w   = get_widget();          auto w = get_widget();   
+\end{verbatim} }
+\item {\bf Commit to stick} to a specific type:
+{\scriptsize \begin{verbatim}
+employee e { empid  };           auto e = employee { empid  };
+widget   w { 12, 34 };           auto w = widget   { 12, 34 };
+\end{verbatim} }
+\end{itemize} %1
+
+\vskip 6pt
+``But why?'' you ask.  Why not use the old style?
+
+\vskip 6pt
+See Sutter...
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Auto Style part 2}
+\frametitle{We're going left-to-right}
+\begin{itemize}[<+->]
+\item Consider consistency with broader shift in syntax and style in
+  Modern C++:
+{\scriptsize \begin{verbatim}
+employee e { empid  };            auto e = employee{ empid  };
+widget   w { 12, 34 };            auto w = widget  { 12, 34 };
+\end{verbatim} }
+\item Now consider literal suffixes
+{\scriptsize \begin{verbatim}
+int x;                            auto x = 42;     // must initialize!
+float f = 42.0;                   auto f = 42.0f;  // no narrowing
+unsigned long y = 42;             auto y = 42ul;   // literal suffix
+std::string s= "Hi";              auto s = "Hi"s;  //
+std::chrono::nanoseconds x{42);   auto x = 42ns;
+\end{verbatim} }
+\item Functions (with new syntax), lambdas, aliases:
+{\scriptsize \begin{verbatim}
+int f( double );                  auto f( double ) -> int; 
+                                  auto f = [](double){...};
+typedef set<string> dict;         using dict = set<string>;
+
+template<class T> struct myvec    template<class T>
+{ typedef vector<T*> type; }       using myvec = vector<T*>;
+\end{verbatim} }
+
+
+\end{itemize} %1
+\end{frame}
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%% auto 4

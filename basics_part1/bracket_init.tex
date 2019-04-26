@@ -1,5 +1,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{\{\} initialization} \lyxframeend{}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Uniform (\{\}) initialization} \lyxframeend{}
 
 \begin{frame}[fragile]
 \frametitle{Uniform initialization and initializer lists}
@@ -24,18 +26,65 @@
 \begin{itemize}
 \item<2->{\scriptsize\begin{verbatim} complex<double> c {2,72, 3.14}; \end{verbatim}}
 \item<2->{\scriptsize\begin{verbatim} rectangle w {origin(), extents()};\end{verbatim}}
-\item<2->{\scriptsize\begin{verbatim} int         i { 1, 2, 3, 4 }; \end{verbatim}}
+\item<2->{\scriptsize\begin{verbatim} int     i[] { 1, 2, 3, 4 }; \end{verbatim}}
 \item<2->{\scriptsize\begin{verbatim} vector<int> v { 1, 2, 3, 4 };  \end{verbatim}}
 \item[] <2->{\scriptsize\begin{verbatim} \end{verbatim}}
 \item[] <2->{\scriptsize\begin{verbatim} \end{verbatim}}
-\item<3->{\scriptsize\begin{verbatim} int i = {42}; // silly but ok\end{verbatim}}
+\item<3->{\scriptsize\begin{verbatim} int i  {42}; // different but ok\end{verbatim}}
 \item<4->{\scriptsize\begin{verbatim} draw_rect({orig,ext});  \end{verbatim}}
 \item[]<4->{\scriptsize(which may or may not be good style, depending on context
   and conventions, but it's logically consistent.)}
 \end{itemize}
-
 \end{columns}
+\pause{}
+\vskip 12pt
+Scott Meyers prefers the term``braced initialization'':
+\begin{quotation}
+``Uniform initialization'' is an idea. ``Braced initialization'' is a
+  syntactic construct.
+\end{quotation}
 \end{frame}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Using '=' for initialization}
+\begin{itemize}[<+->]
+\item Initializing variables with '=' is confusing to beginners, since looks
+like an assignment is happening.
+{\scriptsize\begin{verbatim}
+Widget w1;      // default constructor
+Widget w2 = w1; // Copy constructor *not* assignment op
+
+w1 = w2;  // assignment operator
+\end{verbatim}}
+\item In all but one case, using '=' with braced initialization is
+  optional.  These are all exactly identical:
+{\scriptsize\begin{verbatim}
+int i {42};                int i = {42};
+std::string s {"Hi"};      std::string s = {"Hi"};
+Widget w {this, that};     Widget w = {this, that};
+\end{verbatim}}
+\item This includes types that are movable but not copyable
+{\scriptsize\begin{verbatim}
+std::atomic<int> i   {42}; // fine
+std::atomic<int> i = {42}; // fine
+std::atomic<int> i =  42;  // error (use of deleted function)
+\end{verbatim}}
+\item The only exception involves \texttt{auto} and initializer lists
+  (see below).
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \begin{frame}[fragile,t]
 \frametitle{\CC's Most Vexing Parse\textsuperscript{TM} ... Solved!}
@@ -47,12 +96,13 @@ struct T {   T(const S& )  ;};
 
 S s();       // #1 invoke the default ctor? No!
 T t( S() );  // #2 invoke with a default-constructed S? No!
-\end{verbatim}
+\end{verbatim}}
 
 \begin{itemize}
-\item \#1 declares a function named 's' taking no arguments and
-  returning an S.
-\item \#2 declares a function named 't' that returns a T and taking as parameters, \emph{a pointer to
+\item \#1 declares a function named \texttt{s} returning an \texttt{S}
+  and taking no arguments.
+\item \#2 declares a function named \texttt{t} returning a \texttt{T}
+  and taking \emph{a pointer to
   a function taking no arguments and returing an S}.  Really.
 \item This, due to a rule from C, that states that any construct that
   might possibly be a function declaraion \emph{is} a function
@@ -65,53 +115,162 @@ S s{};         // Unambiguously invokes the default ctor
 S s  ;         // The same, of course
 T t { S() };   // Unambiguously T::T(const S&)
 \end{verbatim}
-}
+
 Henceforth, \CC's Most Vexing Parse\textsuperscript{TM} can be
-relegated to the dustbin if history... and legacy code.
+relegated to the dustbin of history... and legacy code.
 \end{frame}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{No narrowing conversions}
+\framesubtitle{additional type safety}
+As an additional bonus, brace-initialization prohibits implicit
+\emph{narrowing conversions} (assigning a value value to a type that isn't
+guaranteed to be able to hold it).
+{\scriptsize\begin{verbatim}
+  int i = 42;   // fine, obviously
+  int i = 42.0; // no compiler error
+  int i {42.0}; // [x86-64 gcc 4.8.5 #1] warning: narrowing conversion
+                //  of  '4.2e+1' from 'double' to 'int' inside { } 
+                //  [-Wnarrowing]
+
+  double x, y, x;
+  
+  int sum = x + y + z; // truncated to int!
+  
+  int sum = { x + y + z}; // warning as above.
+\end{verbatim}}
+\begin{center}
+\Emph{This is reason enough to use braces in \emph{all}
+  initializations, no matter how trivial}
+\end{center}
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Initializer lists}
+\framesubtitle{from en.cppreference.com}
+\begin{itemize}[<+->]
+\item An object of type \texttt{std::initializer\_list<T>} is a lightweight proxy object that provides access to an array of objects of type const T. 
+\item Initializer lists provide ``old C-style array initialization  syntax'' for user defined types.
+\item A std::initializer\_list object is automatically constructed when:
+  \begin{itemize}
+  \item a braced-init-list is used to list-initialize an object, where the corresponding constructor accepts an std::initializer\_list parameter
+  \item a braced-init-list is used as the right operand of assignment or as a function call argument, and the corresponding assignment operator/function accepts an std::initializer\_list parameter
+  \item a braced-init-list is bound to auto, including in a ranged for loop 
+  \end{itemize}
+\end{itemize}
+\pause{}
+{\scriptsize\begin{verbatim}
+double d[] = { 1.2, 2.3, 3.4 };    // old C-style array initialization
+
+std::vector<double> v = { 1.2, 2.3, 3.4 }; // now this works too
+
+                        ^^^^^^^^^^^^^^^^^^ std::initializer_list<double>
+\end{verbatim}}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 
 \begin{frame}[fragile,t]
 \frametitle{Uniform initialization and initializer lists}
-\center{ \textcolor{purple} {Use \{\} unless you have reason not to. }}
-\begin{itemize}
-\item int i = 42; // too simple and obvious to change
-\vskip 6pt
-\item Unless you need to construct with args that would be a valid initializer list: 
-\begin{verbatim}
-vector<int> v(100); // 100 ints
-vector<int> v{100}; // one element of value 100
-\end{verbatim}
-\vskip 6pt
-\item Unless there is ambiguity: (GCC bug 52522)
-\begin{verbatim}
-Matrix hC(const std::vector<Vector>& vectors);
-Matrix hC(const std::vector<Matrix>& matrices);
-Matrix a,b;
+\framesubtitle{Meyers, item 7}
+\begin{itemize}[<+->]
+\item Enabling initialization-list construction for your own types:
+{\scriptsize\begin{verbatim}
+namespace std {
+template<typename T> class vector {  // sample (bad) implementation
+...
+vector(size_t n, const T& val); // #1 initialize with n vals
 
-hC({a,b});              // BOOM
+vector(std::initializer_list<T> vals); // #2 initialize from 
+                                       // std::initializer_list
+\end{verbatim}}
+(For details, see Meyers item 7).
+\item In this case, there is seeming ambiguity:
+{\scriptsize\begin{verbatim}
+vector<double> d {3, 4.5};   // calls #1, holds {4.5, 4.5, 4.5}
+vector<double> d {3.5, 4.5}; // calls #2, holds {3.5, 4.5}
 
-hC(vector<Matrix>{a,b}) // OK
+vector<size_t> i {3, 4}; // ambiguous? No! #2 is strongly favored
+                         // i holds {3,4} not {4,4,4,4}
 
-\end{verbatim}
+vector<size_t  i (3,4) ; // calls #1, holds {4, 4, 4, 4}
+\end{verbatim}}
+In overload resolution, initializer list calls win.  \Emph{this is one
+  of the few times you need to resort to parentheses.}
 \end{itemize}
+\pause{}
+(this is now considered to be a defect in the interface of std::vector)
 \end{frame}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{frame}[fragile,t]
-\frametitle{Uniform initialization and initializer lists}
+\frametitle{Default construction disambiguation}
+As a special rule, an empty set of braces is always interpreted as a
+call to the default constructor
+\vskip 6pt
+\vskip 6pt
+To call a constructor with a zero-length initializer list, use an
+extra set of braces.
+{\scriptsize\begin{verbatim}
+  std::vector<int> vec_default{} ; // default constructor
 
-\center{ \textcolor{purple} {Use \{\} unless you have reason not to. }}
-\vskip 12pt
-\begin{itemize}
-\item Unless you want to use auto
-\begin{verbatim}
-int n;
-auto w(n);    // int
-auto x = n;   // int
-auto y {n};   // std::initializer_list<int>
-\end{verbatim}
-\end{itemize}
+  std::vector<int> vec_empty {{}}; // empty initializer list
+
+\end{verbatim}}
 \end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Brace Initialization style}
+Meyers admits that the case is somewhat ambiguous, you can't always
+use one or the other.  I say use 'em.
+
+\begin{itemize}
+\item Avoid \CC's Most Vexing Parse\textsuperscript{TM}!
+\item int i {42.0} warns; take advantage of the
+  no-narrowing-conversion rules.
+\item Not what many of us old-timers are used to, but consistency is
+  easier to teach
+\end{itemize}
+
+\center{ \textcolor{purple} {Use \{\} unless you have reason not to: }}
+\begin{itemize}
+\item Ambiguous constructors (\texttt{std::vector<int>})
+\item Interaction with \texttt{auto} (see below)
+\end{itemize}
+
+
+
+\end{frame}
+
+
+%% \vskip 12pt
+%% \begin{itemize}
+%% \item Unless you want to use auto
+%% \begin{verbatim}
+%% int n;
+%% auto w(n);    // int
+%% auto x = n;   // int
+%% auto y {n};   // std::initializer_list<int>
+%% \end{verbatim}
+%% \end{itemize}
+%\end{frame}
