@@ -235,16 +235,16 @@ std::chrono::nanoseconds x{42);   auto x = 42ns;
 \end{verbatim} }
 \item Functions (with new syntax), lambdas, aliases:
 {\scriptsize \begin{verbatim}
-int f( double );                  auto f( double ) -> int; 
-                                  auto f = [](double){...};
+int f( double );                  auto f( double )   -> int; 
+                                  auto f = [](double)-> int {...};
+
 typedef set<string> dict;         using dict = set<string>;
 
 template<class T> struct myvec    template<class T>
-{ typedef vector<T*> type; }       using myvec = vector<T*>;
+{ typedef vector<T*> type; }      using myvec = vector<T*>;
 \end{verbatim} }
-
-
 \end{itemize} %1
+Are you seeing a pattern?
 \end{frame}
 
 
