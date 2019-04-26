@@ -219,8 +219,7 @@ See Sutter...
 \frametitle{Auto Style part 2}
 \frametitle{We're going left-to-right}
 \begin{itemize}[<+->]
-\item Consider consistency with broader shift in syntax and style in
-  Modern C++:
+\item Consider consistency with broader shift in Modern C++:
 {\scriptsize \begin{verbatim}
 employee e { empid  };            auto e = employee{ empid  };
 widget   w { 12, 34 };            auto w = widget  { 12, 34 };
@@ -244,41 +243,118 @@ template<class T> struct myvec    template<class T>
 { typedef vector<T*> type; }      using myvec = vector<T*>;
 \end{verbatim} }
 \end{itemize} %1
-Are you seeing a pattern?
+\begin{center}\Emph{Modern C++ style is evolving towards a
+    left-to-right style}\end{center}
 \end{frame}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\begin{frame}[fragile]
+\frametitle{Auto Style part }
+\begin{itemize}[<+->]
+
+\item Left to right style: 
+
+\begin{center}{\bf category} name = {\bf type}
+  $^{and}_{or}$ {\bf initializer} \end{center}
+{\scriptsize \begin{verbatim}
+Auto variables:          auto e = employee{ empid  };
+                         auto w = get_widget{ 12, 34 };
+
+Literals:                auto x = 42;     
+                         auto f = 42.0f;  // no narrowing
+                         auto y = 42ul;   // literal suffix
+                         auto s = "Hi"s;  // std::string
+                         auto x = 42ns;   // nanoseconds
+
+Function declarations:   auto f( double )   -> int; 
+Named lambdas            auto f = [](double)-> int {...};
+
+Alias (no more typdefs): using dict = set<string>;
+
+Template aliases         template<class T>
+                         using myvec = vector<T*>;
+\end{verbatim} }
+\end{itemize} %1
+\begin{center}On the basis of consistency alone, this is hard to argue
+  with.\end{center}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% 
+\begin{frame}[fragile]
+\frametitle{Case Study}
+\begin{itemize}[<+->]
+\item But, consider a case from OCEANA:
+{\scriptsize \begin{verbatim}
+auto num       = std::accumulate (...)
+unsigned denom = ...
+double ratio = (double) num/denom; // is the cast necessary
+\end{verbatim} }
+  \begin{itemize}
+    \item Cppcheck complains about old-style cast
+    \item Cppcheck also complains about unneeded cast ... is it right?
+    \item \emph{not clear from context}
+    \item solutions:
+      {\scriptsize \begin{verbatim}
+auto num = std::accumulate (vec.begin(), vec.end(), 0.0) // notice arg
+double num = ...           // clearer  (this is what we did)
+auto num = double(...)     // better?
+\end{verbatim} }
+\end{itemize}
+\item Example from Herb's talk: when updating legacy code
+ {\scriptsize \begin{verbatim} Base* pb = new derived(); \end{verbatim} }
+to modern code, where I and others kept \emph{not} noticing the types:
+ {\scriptsize \begin{verbatim} 
+unique_ptr<base> pb = make_unique<derived>();
+ // too subtle: difference in types hard to see
+
+auto pb = make_unique<derived>(); // WRONG
+
+auto pb  = unique_ptr<base> {make_unique<derived>()};
+\end{verbatim} }
+``I resisted auto and regretted it''
+\end{itemize}
+\end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%% auto 4
 \begin{frame}[fragile]
-\frametitle{When \emph{should} you use auto?}
-
+\frametitle{Auto Summary}
+\begin{itemize}[<+->]
+\item When \Emph{must} you use auto?
+  \begin{itemize}
+  \item unnameable types (lambdas)
+  \item implementation-defined types
+  \end{itemize}
+\item When \Emph{can't} you use auto / the new style
+  \begin{itemize}
+  \item Careful with brace initializers
+  \item Can't use '=' with noncopyable types
+  \end{itemize}
+\item \Emph{Suggested advice}:
+  \begin{itemize}
+  \item {\bf Deduce to track} if you don't need to commit
+{\scriptsize \begin{verbatim} auto var = init_expr; \end{verbatim} }
+  \item {\bf Commit to stick}
+{\scriptsize \begin{verbatim} auto var = typename{init_expr}; \end{verbatim} }
+  \end{itemize}
+\item Why?
+  \begin{itemize}
+  \item consistency
+  \item no uninitailzed variables
+  \item no narrowing conversions
+  \item no implicit conversions or invisible copies
+  \item maintainability
+  \end{itemize}
+\end{itemize}
 \center{ \textcolor{purple} {Everywhere you can.} }
-
-(note: interface change robustness)
-\pause
-
 \center{ \textcolor{purple} {(unless it's trivial?)} }
 \center{ \textcolor{purple} {(unless it's confusing?)} }
 
-\pause
 
-\begin{itemize}
-\item
-\begin{verbatim} auto pi = 3.14 ; // double
-\end{verbatim} 
-\pause{}
-\item
-\begin{verbatim} auto pi = 3.14L; // long double
-\end{verbatim} 
-\pause{}
-\item
-\begin{verbatim} auto pi = 3.14l; // long int!
-\end{verbatim} 
-\end{itemize}
-
-\pause
 There is still some debate.  Herb Sutter advocates ``AAA'' (Almost Always Auto)
 \url{https://herbsutter.com/2013/08/12/gotw-94-solution-aaa-style-almost-always-auto/}, others
 disagree, I think the jury is still out, and it may be a matter for local style guides.
