@@ -9,7 +9,7 @@
 \begin{frame}[fragile]
 \frametitle{Delegating Ctors}
 \framesubtitle{(Mostly directly from Stroustrup's website)}
-Avoiding repeated code in similar constructors.
+Initialization code common to many constructors
 \begin{columns}[t]
 \column{.5\textwidth}
 {\scriptsize
@@ -17,15 +17,15 @@ Old: repeat yourself or call an init() function.
 \begin{verbatim}
 class X {
   int a;
-
   validate(int x) { stuff }
 
  public:
 
   X(int x) { validate(x); }
   X()      { validate(42); }
-  X(string s) { int x = lexical_cast<int>(s);
-                validate(x); }
+  X(string s) { 
+    int x = lexical_cast<int>(s);
+    validate(x);      }
 };
 \end{verbatim}
 }
@@ -39,12 +39,11 @@ class X {
   int a;
 
 
-
  public:
 
   X(int x)  { validate(x);  }
-  X()         : X{42} { }
-  X(string s) : X{lexical_cast<int>(s)} { }
+  X()         : X{42} {}
+  X(string s) : X{lexical_cast<int>(s)} {}
 };
 \end{verbatim}
 }
@@ -82,9 +81,18 @@ struct B            {void f(double); };
 
 struct D : public B {void f(int);    };
 
+
+
+
+
+
 B b;   b.f(4.5);  // fine
+
 D d;   d.f(4.5);  // surprise: calls f(int)
                   // with argument 4
+
+d.B::f(4.5)  // Explicit scope, now calls
+             // f(double)
 \end{verbatim}
 }
 \pause{}
@@ -102,6 +110,7 @@ struct D : public B {
 };
 
 B b;   b.f(4.5); // fine
+
 D d;   d.f(4.5); // fine: calls D::f(double)
                  // which is B::f(double)
 \end{verbatim}
@@ -109,7 +118,8 @@ D d;   d.f(4.5); // fine: calls D::f(double)
 \end{columns}
 \pause{}
 \vskip 24pt
-"Little more than a historical accident prevents using this to work for a constructor as well as for an ordinary member function." --Stroustrup
+"Little more than a historical accident prevents using this for
+constructors as well as for ordinary member functions." --Stroustrup
 \end{frame}
 
 \begin{frame}[fragile]
@@ -143,7 +153,7 @@ D::D(string); // inherited
 
 \begin{frame}[fragile]
 \frametitle{Inheriting Ctors III}
-Gotcha: inherit ctor in a derived class with new member variables that
+Gotcha: inheriting ctors in a derived class with new member variables that
 need initialization:
 
 {\scriptsize
@@ -169,6 +179,7 @@ base ctors directly:
 \begin{verbatim}
 struct D1 : public B1 {
   using B1::B1;
+  int x;
   D1(int a, int b) : B1(a), x(b) {}
 }
 \end{verbatim}
@@ -181,9 +192,10 @@ struct D1 : public B1 {
 \begin{frame}[fragile]
 \frametitle{Override}
 \framesubtitle{(straight from the isocpp website)}
-Confusing:
+Common errors with virtual functions:
 \begin{columns}[t]
-\column{.5\textwidth}
+\column{.5\textwidth}<1->
+The problem:
 {\scriptsize
 \begin{verbatim}
 struct B {
@@ -204,7 +216,8 @@ struct D : B {
 \end{verbatim}
 }
 \pause{}
-\column{.5\textwidth}
+\column{.5\textwidth}<2->
+The solution:
 {\scriptsize
 \begin{verbatim}
 
@@ -225,21 +238,22 @@ struct D : B {
 \end{verbatim}
 }
 \end{columns}
-\pause{}
 \begin{itemize}
 \item A declaration marked override is only valid if there is a function to override.
-\item 'override' is only a contextual keyword, so you can still use it
+\item ``override'' is a contextual keyword, so you can still use it
   as an identifier (but arguably you shouldn't).
 \end{itemize}
+\begin{center}\Emph{Use everywhere -- this is possibly the first thing
+to adopt in \CC11}\end{center}
 \end{frame}
 
 
 \begin{frame}[fragile]
 \frametitle{final}
 \framesubtitle{(straight from the isocpp website)}
-How to keep a virtual function from beeing overridden?
+The flip side: how to keep a virtual function from beeing overridden?
 \begin{columns}[t]
-\column{.5\textwidth}
+\column{.5\textwidth}<1->
 \Emph{\CC 03: comments...}
 {\scriptsize
 \begin{verbatim}
@@ -256,8 +270,7 @@ struct C : public B {
 };
 \end{verbatim}
 }
-\pause{}
-\column{.5\textwidth}
+\column{.5\textwidth}<2->
 \Emph{\CC 11: final keyword}
 {\scriptsize
 \begin{verbatim}
@@ -275,7 +288,6 @@ struct C : public B {
 \end{columns}
 \pause{}
 \begin{itemize}
-\item Use for semantic purposes only, not optimization (this is not Java)
 \item Frequently used to cover OO design error.  Closes off future
   customization... do you really want to do that?
 \item final is only a contextual keyword, so you can still use it as
@@ -284,7 +296,65 @@ struct C : public B {
 \end{frame}
 
 
+\begin{frame}[fragile]
+\frametitle{Final}
+When to use \texttt{final}?  Almost never.  Use cases are rare.
+\begin{itemize}
+\item To prohibit a derived class from giving the method a different
+  meaning:
+{\scriptsize
+\begin{verbatim}
+struct A { 
+            void f(int, double)       {}; 
+    virtual void g(int, double) final {}; 
+    
+};
 
+struct B : public A {
+    void f(int, double) {} // hides A::f
+    void g(int, double) {} // compile error
+};
+\end{verbatim}}
+\item For opimization (``De-virtualization''), but note that many
+  compilers can do this anyway.  (Live demo)
+\item For multi-layered NVI patterns (unusual but it does happen)
+\end{itemize}
+    
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Final Classes}
+When used in a class definition, it prevents inheritance.
+{\scriptsize
+\begin{verbatim}
+struct A {  virtual void f(); };
+
+struct B final : public A { void f() override; };
+
+struct C : public B {};  // error: cannot derive from 'final' base 'B' in derived type 'C'
+};
+\end{verbatim}
+}
+Why?
+\begin{itemize}
+\item efficiency: as with final virtual functions, this can assist the
+  compiler in de-virtualizing a function call.
+\item safety: ensure that your class is not used as a base class (for example, to be sure that you can copy objects without fear of slicing).
+\end{itemize}
+
+    
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Member Function Control}
 
 \begin{frame}[fragile]
