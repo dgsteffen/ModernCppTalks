@@ -168,7 +168,7 @@ struct D1 : public B1 {
   int x;
 };
 
-D1 d(6);   // Oops: d.x is not initialized
+D1 d {6};   // Oops: d.x is not initialized
 D1 e;      // error: D1 has no default constructor
 \end{verbatim}
 }
@@ -361,6 +361,7 @@ Why?
 \frametitle{Deleted Members}
 \framesubtitle{(straight from the isocpp website)}
 How to prohibit copying?
+\vskip 12pt
 \begin{columns}[t]
 \column{.5\textwidth}
 \Emph{\CC 03: The old way...}
@@ -379,8 +380,7 @@ private:
 
 Make copy ops private and don't define them
 }
-\pause{}
-\column{.5\textwidth}
+\column{.5\textwidth}<2->
 \Emph{\CC 11: explicitly delete 'em}
 {\scriptsize
 \begin{verbatim}
@@ -415,7 +415,7 @@ an error to call them.
 
 \pause{}
 \vskip 12pt
-Can therefore be used to eliminate undesired converions:
+This can therefore be used to eliminate undesired converions:
 {\scriptsize
 \begin{verbatim}
 struct Z {
@@ -443,7 +443,7 @@ class Y {
     Y(const Widget&); // disables compiler-generated defaults
 
     Y& operator=(const Y&) = default;   // default copy semantics
-    Y(const Y&) = default;
+    Y(const Y&)            = default;
 };
 \end{verbatim}
 }
@@ -472,8 +472,8 @@ struct A {A(int) ;};
 
 void foo (A a);
 
-A a(5); // OK, explicit constructor call
-foo(5); // OK, implicit constructor call
+A a {5}; // OK, explicit constructor call
+foo (5); // OK, implicit constructor call
 \end{verbatim}
 }
 \column{.5\textwidth}
@@ -482,8 +482,8 @@ struct A { explicit A(int) ;};
 
 void foo (A a);
 
-A a(5); // OK, explicit constructor call
-foo(5); // Error
+A a {5}; // OK, explicit constructor call
+foo (5); // Error
 \end{verbatim}
 }
 \end{columns}
@@ -510,7 +510,7 @@ foo (a);                  // implicit
 {\scriptsize
 \Emph{C++11 adds explicit conversion ops}
 \begin{verbatim}
-struct A { explicit  operator int(); };
+struct A { explicit operator int(); };
 
 void foo (int);
 
@@ -540,10 +540,10 @@ foo (a);                  // error
   \begin{itemize}
     \item Including single-argument constructors
   \end{itemize}
-\item ``Good reason'' == it's fundamental in the application domain
+\item ``Good reason'' means it's fundamental in the application domain
   and frequently needed.
 \item Make all conversion to bool (operator bool) explicit, period.
-  Implicit conversion to bool is very dangerous)
+  \Emph{Implicit conversion to bool is very dangerous}
 \end{itemize}
 \pause{}
 Does this print a correct statement in C++98?
@@ -551,7 +551,7 @@ Does this print a correct statement in C++98?
 cout << "8+8 = " <<
 cout << "6";
 \end{verbatim}
-
+\pause{}
 One of the scariest bugs I've seen
 \vskip 6pt
 $A^{-1}B^{T}CB{A^{T}}^{-1} + 2/D$

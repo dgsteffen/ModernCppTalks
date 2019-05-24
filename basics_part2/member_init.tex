@@ -56,7 +56,8 @@ public:
    X(int a)    : _a(a), _b(5), _s("Forty Two?") {}
    X(string s) : _a(a), _b(5), _s(s) {}
 private:
-   int _a, _b;
+   int _a;
+   int _b;
    string _s;
 };
 \end{verbatim}
@@ -80,9 +81,10 @@ private:
 };
 \end{verbatim}
 }
+\end{frame}
 
-\vskip 12pt
-
+\begin{frame}[fragile]
+\frametitle{In-class initializers III}
 \begin{itemize}
 \item Any member initialized by both an in-class initializer and a
 constructor only gets initialized by the constructor.
