@@ -29,8 +29,7 @@ class X {
 };
 \end{verbatim}
 }
-\pause{}
-\column{.5\textwidth}
+\column{.5\textwidth}<2->
 {\scriptsize
 New: constructors call other constructors
 
@@ -55,9 +54,9 @@ class X {
 \item Gotchas: none known yet.
 \item Only the delegating ctor is allowed in the init list.  Delegate
   or initialize, not both.
-\item Lifetime begins when \Emph{any} constructor completes.
-  Therefore an exception thrown from the body of a
-  delegating constructor will cause the destructor to be invoked.
+\item Lifetime begins when \Emph{any} constructor completes,
+  so an exception thrown from a
+  delegating constructor will invoke the destructor.
 
 \item Note that delegating to a base class' ctors has always been
 supported.  Now we can delegate to our own.
@@ -95,8 +94,7 @@ d.B::f(4.5)  // Explicit scope, now calls
              // f(double)
 \end{verbatim}
 }
-\pause{}
-\column{.5\textwidth}
+\column{.5\textwidth}<2->
 In \CC98, we can "lift" a set of overloaded functions from a base class into a derived class:
 {\scriptsize
 \begin{verbatim}
@@ -215,7 +213,6 @@ struct D : B {
 };
 \end{verbatim}
 }
-\pause{}
 \column{.5\textwidth}<2->
 The solution:
 {\scriptsize
@@ -238,6 +235,7 @@ struct D : B {
 \end{verbatim}
 }
 \end{columns}
+\onslide<3->
 \begin{itemize}
 \item A declaration marked override is only valid if there is a function to override.
 \item ``override'' is a contextual keyword, so you can still use it
@@ -326,7 +324,7 @@ struct B : public A {
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 \begin{frame}[fragile]
 \frametitle{Final Classes}
@@ -345,7 +343,9 @@ Why?
 \begin{itemize}
 \item efficiency: as with final virtual functions, this can assist the
   compiler in de-virtualizing a function call.
-\item safety: ensure that your class is not used as a base class (for example, to be sure that you can copy objects without fear of slicing).
+\item safety: ensure that your class is not used as a base class (for
+  example, to be sure that you can copy objects without fear of
+  slicing).
 \end{itemize}
 
     
@@ -554,10 +554,10 @@ cout << "6";
 \pause{}
 One of the scariest bugs I've seen
 \vskip 6pt
-$A^{-1}B^{T}CB{A^{T}}^{-1} + 2/D$
-(it was supposed to be 2*D
+$A^{-1}BCB^TA + .5/D$
+(it was supposed to be .5*D
 \pause{}
 
-\Emph{This evaluated to 3 }
+\Emph{This evaluated to 1.5 }
 
 \end{frame}
