@@ -1,0 +1,78 @@
+\section{Strong Enums}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Enum classes}
+\framesubtitle{isocpp.org}
+\begin{itemize}
+{\scriptsize
+\item Conventional enums implicitly convert to an integer, causing errors when someone does not want an enumeration to act as an integer.
+\pause{}
+\item Conventional enums export their enumerators to the surrounding scope, causing name clashes.
+\pause{}
+\item The underlying type of an enum cannot be specified, causing confusion, compatibility problems, and makes forward declaration impossible.
+\pause{}
+\item Enter: enum class!
+\begin{verbatim}
+enum       Fruit { apple, orange, grape};
+enum class Color { red, blue, yellow, orange};
+enum class Phone { apple, samsung, microsoft};
+
+Alert a = 7 ; // error as usuual
+Color c = 7 ; // error, no int->Color conversion
+
+int a1 = orange ; // OK (as usual)
+int a2 = Fruit::orange; // error in C++98, ok now
+int a3 = Color::orange; // error in C++11, no Color -> int conversion
+
+\end{verbatim}
+
+\item ``Class'' enums scope their values
+\item ``enum class'' because they scope like classes do
+  (syntax used in C++/CLI before being proposed).
+\item No implicit conversions to or from integers
+}
+
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Enum classes II}
+\framesubtitle{isocpp.org}
+\begin{itemize}
+\item Now we can explicitly declare the underlying type:
+{\scriptsize
+\begin{verbatim}
+enum class Color : char { red, blue };  // compact representation
+
+enum class Alert { red, yellow, green}; // int by default
+
+enum Rhino { small=1, medium=5, large=1234567 }; // whaever old rules say
+
+enum Rhino2 : unsigned long {...}; // now we can be specific
+\end{verbatim}
+}
+\pause{}
+
+\vskip 6pt
+
+\item And now we can forward declare enums:
+
+{\scriptsize
+\begin{verbatim}
+enum class Color : char; // forward declare in header file
+
+void paint(Color c);     // declare function in header
+
+// elsewhere
+
+enum class Color : char { red, green}; // define
+\end{verbatim}
+}
+
+\end{itemize}
+
+\Emph{Use everywhere}
+
+\end{frame}

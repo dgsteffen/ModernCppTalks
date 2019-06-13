@@ -1,0 +1,563 @@
+
+\subsection{Delegating Constructors}
+\lyxframeend{}
+
+%\lyxframe{auto}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%% auto 1
+\begin{frame}[fragile]
+\frametitle{Delegating Ctors}
+\framesubtitle{(Mostly directly from Stroustrup's website)}
+Initialization code common to many constructors
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+Old: repeat yourself or call an init() function.
+\begin{verbatim}
+class X {
+  int a;
+  validate(int x) { stuff }
+
+ public:
+
+  X(int x) { validate(x); }
+  X()      { validate(42); }
+  X(string s) { 
+    int x = lexical_cast<int>(s);
+    validate(x);      }
+};
+\end{verbatim}
+}
+\column{.5\textwidth}<2->
+{\scriptsize
+New: constructors call other constructors
+
+\begin{verbatim}
+class X {
+  int a;
+
+
+ public:
+
+  X(int x)  { validate(x);  }
+  X()         : X{42} {}
+  X(string s) : X{lexical_cast<int>(s)} {}
+};
+\end{verbatim}
+}
+\end{columns}
+
+\pause{}
+
+\begin{itemize}
+\item Gotchas: none known yet.
+\item Only the delegating ctor is allowed in the init list.  Delegate
+  or initialize, not both.
+\item Lifetime begins when \Emph{any} constructor completes,
+  so an exception thrown from a
+  delegating constructor will invoke the destructor.
+
+\item Note that delegating to a base class' ctors has always been
+supported.  Now we can delegate to our own.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+\subsection{Inheriting Constructors}
+
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors}
+
+\begin{columns}[t]
+\column{.5\textwidth}
+A member of a base class is not in the same scope as a member of a derived class:
+{\scriptsize
+\begin{verbatim}
+struct B            {void f(double); };
+
+struct D : public B {void f(int);    };
+
+
+
+
+
+
+B b;   b.f(4.5);  // fine
+
+D d;   d.f(4.5);  // surprise: calls f(int)
+                  // with argument 4
+
+d.B::f(4.5)  // Explicit scope, now calls
+             // f(double)
+\end{verbatim}
+}
+\column{.5\textwidth}<2->
+In \CC98, we can "lift" a set of overloaded functions from a base class into a derived class:
+{\scriptsize
+\begin{verbatim}
+struct B {void f(double);  };
+
+struct D : public B {
+  using B::f;  // bring all f()s from B
+               // into scope
+
+  void f(int); // add a new f()
+};
+
+B b;   b.f(4.5); // fine
+
+D d;   d.f(4.5); // fine: calls D::f(double)
+                 // which is B::f(double)
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\vskip 24pt
+"Little more than a historical accident prevents using this for
+constructors as well as for ordinary member functions." --Stroustrup
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors II}
+
+Syntax:
+
+
+{\scriptsize
+\begin{verbatim}
+struct B
+{
+    B(int);    // normal constructor 1
+    B(string); // normal constructor 2
+};
+
+struct D : public B
+{
+    using B::B; // inherit (all!) constructors from B
+};
+\end{verbatim}
+}
+This implicitly defines
+{\scriptsize
+\begin{verbatim}
+D::D(int);    // inherited
+D::D(string); // inherited
+\end{verbatim}
+}
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Inheriting Ctors III}
+Gotcha: inheriting ctors in a derived class with new member variables that
+need initialization:
+
+{\scriptsize
+\begin{verbatim}
+struct B1 {
+  B1(int i) : a(i) { }
+  int a;
+};
+
+struct D1 : public B1 {
+  using B1::B1; // implicitly declares D1(int)
+  int x;
+};
+
+D1 d {6};   // Oops: d.x is not initialized
+D1 e;      // error: D1 has no default constructor
+\end{verbatim}
+}
+
+Inherited ctors don't know about added member data, but you can call
+base ctors directly:
+{\scriptsize
+\begin{verbatim}
+struct D1 : public B1 {
+  using B1::B1;
+  int x;
+  D1(int a, int b) : B1(a), x(b) {}
+}
+\end{verbatim}
+}
+
+\end{frame}
+
+\subsection{Virtual Function Controls}
+
+\begin{frame}[fragile]
+\frametitle{Override}
+\framesubtitle{(straight from the isocpp website)}
+Common errors with virtual functions:
+\begin{columns}[t]
+\column{.5\textwidth}<1->
+The problem:
+{\scriptsize
+\begin{verbatim}
+struct B {
+    virtual void f();
+    virtual void g() const;
+    virtual void h(char);
+    void k();   // not virtual
+};
+struct D : B {
+    void f();   // overrides B::f()
+    void g();   // doesn't override B::g()
+                //   (wrong type)
+    void h(char); // overrides B::h()
+
+    void k();   // doesn't override B::k(),
+                // B::k() is not virtual
+};
+\end{verbatim}
+}
+\column{.5\textwidth}<2->
+The solution:
+{\scriptsize
+\begin{verbatim}
+
+
+
+
+
+
+struct D : B {
+  void f() override;  // OK: overrides B::f()
+  void g() override;  // error: wrong type
+
+  void h(char);       // overrides B::h();
+                      //   likely warning
+  void k() override;  // error: B::k()
+                      //   is not virtual
+};
+\end{verbatim}
+}
+\end{columns}
+\onslide<3->
+\begin{itemize}
+\item A declaration marked override is only valid if there is a function to override.
+\item ``override'' is a contextual keyword, so you can still use it
+  as an identifier (but arguably you shouldn't).
+\end{itemize}
+\begin{center}\Emph{Use everywhere -- this is possibly the first thing
+to adopt in \CC11}\end{center}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{final}
+\framesubtitle{(straight from the isocpp website)}
+The flip side: how to keep a virtual function from beeing overridden?
+\begin{columns}[t]
+\column{.5\textwidth}<1->
+\Emph{\CC 03: comments...}
+{\scriptsize
+\begin{verbatim}
+struct A { virtual void f(); };
+
+struct B : public A {
+  // DO NOT OVERRIDE, THIS MEANS YOU
+  virtual void f();
+};
+
+struct C : public B {
+  // compiler doesn't read comments
+  virtual void f();
+};
+\end{verbatim}
+}
+\column{.5\textwidth}<2->
+\Emph{\CC 11: final keyword}
+{\scriptsize
+\begin{verbatim}
+struct A { virtual void f(); };
+
+struct B : public A {
+  virtual void f() final;
+};
+
+struct C : public B {
+  virtual void f(); // error
+};
+\end{verbatim}
+}
+\end{columns}
+\pause{}
+\begin{itemize}
+\item Frequently used to cover OO design error.  Closes off future
+  customization... do you really want to do that?
+\item final is only a contextual keyword, so you can still use it as
+  an identifier (but you probably shouldn't).
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Final}
+When to use \texttt{final}?  Almost never.  Use cases are rare.
+\begin{itemize}
+\item To prohibit a derived class from giving the method a different
+  meaning:
+{\scriptsize
+\begin{verbatim}
+struct A { 
+            void f(int, double)       {}; 
+    virtual void g(int, double) final {}; 
+    
+};
+
+struct B : public A {
+    void f(int, double) {} // hides A::f
+    void g(int, double) {} // compile error
+};
+\end{verbatim}}
+\item For opimization (``De-virtualization''), but note that many
+  compilers can do this anyway.  (Live demo)
+\item For multi-layered NVI patterns (unusual but it does happen)
+\end{itemize}
+    
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile]
+\frametitle{Final Classes}
+When used in a class definition, it prevents inheritance.
+{\scriptsize
+\begin{verbatim}
+struct A {  virtual void f(); };
+
+struct B final : public A { void f() override; };
+
+struct C : public B {};  // error: cannot derive from 'final' base 'B' in derived type 'C'
+};
+\end{verbatim}
+}
+Why?
+\begin{itemize}
+\item efficiency: as with final virtual functions, this can assist the
+  compiler in de-virtualizing a function call.
+\item safety: ensure that your class is not used as a base class (for
+  example, to be sure that you can copy objects without fear of
+  slicing).
+\end{itemize}
+
+    
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Member Function Control}
+
+\begin{frame}[fragile]
+\frametitle{Deleted Members}
+\framesubtitle{(straight from the isocpp website)}
+How to prohibit copying?
+\vskip 12pt
+\begin{columns}[t]
+\column{.5\textwidth}
+\Emph{\CC 03: The old way...}
+{\scriptsize
+
+\begin{verbatim}
+struct A {
+
+ // ...
+private:
+
+ A(const A&); // copy ctor
+ A& operator=( const A&);
+};
+\end{verbatim}
+
+Make copy ops private and don't define them
+}
+\column{.5\textwidth}<2->
+\Emph{\CC 11: explicitly delete 'em}
+{\scriptsize
+\begin{verbatim}
+struct A {
+
+ // ...
+ A(const A&) = delete;
+ A& operator=(const A&) = delete;
+};
+\end{verbatim}
+
+Explicitly prevent compiler from generating the default implementations.
+}
+\end{columns}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Deleted Members -- existential crisis}
+Deleted functions \Emph{do not cease to exist}.  They exist, but it's
+an error to call them.
+\begin{itemize}
+\item They participate in overload lookup:
+\pause{}
+\item ... given a set of overloads, the compiler considers deleted
+  functions.
+\item If the result of overload resolution is a deleted member
+  function, it's an error
+\pause{}
+\end{itemize}
+
+\pause{}
+\vskip 12pt
+This can therefore be used to eliminate undesired converions:
+{\scriptsize
+\begin{verbatim}
+struct Z {
+  // ...
+  Z(long long);     // can initialize with a long long
+  Z(long) = delete; // but not anything smaller
+};
+\end{verbatim}
+}
+
+
+
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Defaulted Members}
+\framesubtitle{(straight from the isocpp website)}
+Conversely, sometimes we'd like the compiler to provide a default:
+{\scriptsize
+\begin{verbatim}
+class Y {
+    // ...
+    Y(const Widget&); // disables compiler-generated defaults
+
+    Y& operator=(const Y&) = default;   // default copy semantics
+    Y(const Y&)            = default;
+};
+\end{verbatim}
+}
+\pause{}
+\begin{itemize}
+\item Useful when the compiler-generated defaults have been disabled (by
+providing other ctors)
+\item Arguably, can increase clarity even when not absolutely needed.
+\end{itemize}
+\end{frame}
+
+
+\subsection{Explicit Conversions}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Explicit conversions}
+\framesubtitle{isocpp.org}
+C++98 has implicit and explicit constructors:
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim}
+struct A {A(int) ;};
+
+void foo (A a);
+
+A a {5}; // OK, explicit constructor call
+foo (5); // OK, implicit constructor call
+\end{verbatim}
+}
+\column{.5\textwidth}
+{\scriptsize \begin{verbatim}
+struct A { explicit A(int) ;};
+
+void foo (A a);
+
+A a {5}; // OK, explicit constructor call
+foo (5); // Error
+\end{verbatim}
+}
+\end{columns}
+
+\pause{}
+\vskip 6pt
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+And implicit conversion ops
+\begin{verbatim}
+struct A { ... operator int(); };
+
+void foo (int);
+
+A a;
+
+foo(static_cast<int>(a)); // explicit
+foo (a);                  // implicit
+
+\end{verbatim}
+}
+\column{.5\textwidth}
+{\scriptsize
+\Emph{C++11 adds explicit conversion ops}
+\begin{verbatim}
+struct A { explicit operator int(); };
+
+void foo (int);
+
+A a;
+
+foo(static_cast<int>(a)); // explicit
+foo (a);                  // error
+
+
+\end{verbatim}
+}
+\end{columns}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile]
+\frametitle{Explicit conversions II}
+\framesubtitle{isocpp.org}
+
+
+\begin{itemize}
+\item Make all conversion operators explicit unless there's good
+  reason not to.
+
+  \begin{itemize}
+    \item Including single-argument constructors
+  \end{itemize}
+\item ``Good reason'' means it's fundamental in the application domain
+  and frequently needed.
+\item Make all conversion to bool (operator bool) explicit, period.
+  \Emph{Implicit conversion to bool is very dangerous}
+\end{itemize}
+\pause{}
+Does this print a correct statement in C++98?
+\begin{verbatim}
+cout << "8+8 = " <<
+cout << "6";
+\end{verbatim}
+\pause{}
+One of the scariest bugs I've seen
+\vskip 6pt
+$A^{-1}BCB^TA + .5/D$
+(it was supposed to be .5*D
+\pause{}
+
+\Emph{This evaluated to 1.5 }
+
+\end{frame}
