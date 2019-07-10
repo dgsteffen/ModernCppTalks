@@ -1,0 +1,401 @@
+\subsection[Tricky Basics]{Tricky Basics}
+
+\begin{frame}[fragile,t]
+\frametitle{Keyword Typename}
+\framesubtitle{From Vandevoorde \& Jossutis}
+Consider:
+
+{\scriptsize
+\begin{verbatim}
+template<class T> 
+class MyTemplateClass
+{
+  ...
+
+  typename T::subclass * ptr;
+};
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item The second \texttt{typename} helps the compiler by
+  disambiguating the construct
+\item Without it, 
+{\scriptsize
+\begin{verbatim}
+           T::subclass * ptr;
+\end{verbatim}
+}
+looks like a static member that you're trying to multiply by something.
+\item More generally, use \texttt{typename} when a construct involving
+  the template parameter is supposed to produce a type.
+\end{itemize}
+\pause
+\begin{center}
+We'll come back to this in a moment; the rule is simple, the reasons
+less so
+\end{center}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{The .template construct}
+Similarly:
+{\scriptsize
+\begin{verbatim}
+template<int N> void printBitset (const std::bitset<N>& bs)
+{
+  // std::bitset has a member template:
+  // template <class charT, class traits, class Alloc>
+  // basic_string<charT,traits,Alloc> std::bitset<T,N>::to_string() const;
+
+  bs.to_string<char, char_traits<char>, allocator<char>>(); // ERROR
+
+  bs.template to_string< ... >; // OK
+}
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item Without the wierd \texttt{.template} thing
+{\scriptsize
+\begin{verbatim}
+  bs.to_string<char, char_traits<char>, allocator<char>>();
+  // parses as:
+  (bs.to_string) < (other stuff...)
+  // that's a less-than operator!
+\end{verbatim}
+}
+\item use \texttt{.template} (and, sometimes, \texttt{->template}) only
+  in front of an explicit template reference of something that depends
+  on the template argument.
+\item In real life, I ignore these until I get wierd error messages, and
+then pull out the book.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Using this->}
+
+\begin{itemize}[<+->]
+\item for class templates with base classes, inherited names must be
+  qualified:
+{\scriptsize
+\begin{verbatim}
+template<typename T> struct Base {
+  int m;
+  void exit(); 
+};
+
+template<typename T> struct Derived : Base<T> {
+  void foo() {
+    m=3;        // error, 'm' not known
+    exit();     // calls some external 'exit'
+
+    this->m = 3;     // OK
+    this->exit();    // Yup
+  }
+};
+\end{verbatim}
+}
+
+\item Annoying, but necessary, because the compiler doesn't know if
+  \texttt{Base<T>} is specialized, can't assume  it knows what those
+  names mean.
+
+\end{itemize}
+
+\end{frame}
+
+
+\subsection {Names in Templates}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Name Taxonomy}
+\framesubtitle{What's going on here?}
+Two kinds of names in templates:
+
+\begin{itemize}[<+->]
+\item {\bf Dependent Names} are those that depend on a template
+  parameter: \texttt{std::vector<T>::iterator} depends on T for definition.
+\item {\bf Non-Dependent Names} are those that ... don't.
+\item Non-dependent symbols are resolved at the point of the template
+  \emph{definition}
+\item Dependent symbols are resolved at the point of the template \emph{instantiation}
+ \begin{itemize}
+  \item Consider: what if \texttt{vector<bool>} is specialized, and
+    \texttt{iterator} is now a function or something?
+  \end{itemize}
+\item This is the dreaded ``Two Phase Lookup'' rule.
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Name Taxonomy}
+\framesubtitle{Dependent Name Issues}
+{\scriptsize
+\begin{verbatim}
+template<typename T> struct Trap { enum { x };};
+// (1) x is not a type here
+
+template<typename T> struct Victim
+{
+  int y;
+  void poof()  {  Trap<T>::x*y;  }  
+                  // (2) declaration or multiplication?
+};
+
+// evil specialization
+template<> struct Trap<void> {typedef int x};
+// (3) x is a type here
+
+void boom(Victim<void>& bomb)  {bomb.poof(); }
+\end{verbatim}
+}
+
+
+\begin{itemize}[<+->]
+\item When parsing line 2 the compiler must decide what it's seeing.
+\item It \emph{cannot} just look in Trap to find out, because it
+  doesn't know about the specialization
+\item General rule: the compiler has to wait as long as possible
+  before binding names!
+\item Therefore we have to help out.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Name Taxonomy}
+\framesubtitle{Dependent Name Issues II}
+Similarly
+{\scriptsize
+\begin{verbatim}
+template<typename T> struct Shell {
+  template<int N> struct In {
+    template<int M> struct Deep {
+      virtual void f();
+   };
+ };
+};
+
+template<typename T, int N> struct Wierd {
+  void case1(Shell<T>::template In<N>::template Deep<N> p {
+    p.template Deep<N>::f();        // inhibit virtual fn call
+    (&p)->template Deep<N>::f();
+  }
+};
+\end{verbatim}
+}
+
+\begin{itemize}[<+->]
+
+\item The extra \texttt{.template}s keep 
+{\scriptsize
+\begin{verbatim}
+  p.Deep< N >::f()
+\end{verbatim}
+}
+from begin parsed as
+{\scriptsize
+\begin{verbatim}
+((p.Deep)<N)>::f()
+\end{verbatim}
+}
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Derivation and Class Templates}
+\framesubtitle{Nondependent Base Class}
+A nondependent base is one that doesn't depend on template arguments.
+{\scriptsize
+\begin{verbatim}
+template<typename X> struct Base {
+  int basefield;
+  typedef int T;
+};
+
+class D1 : public Base<Base<void>> {  // not a template case
+  void foo() { basefield = 3;}   // normal
+  // Base::T is int, obviously
+};
+
+template<typename T> class D2 : public Base<double> {
+  void foo() { basefield = 3; }   // sure
+  T strange;  // T is Base<double>::T, not the template param
+};
+
+\end{verbatim}
+}
+
+This, because nondependent bases are considered before the list of
+template parameters...
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Derivation and Class Templates}
+\framesubtitle{Dependent Base Class}
+A Dependent base is one that depends on the template parameter
+{\scriptsize
+\begin{verbatim}
+template<typename X> struct Base {
+  int basefield;
+  typedef int T;
+};
+
+template<typename T> struct DD : Base<T> {
+  void f() { basefield = 0; }   // (1) problem
+};
+
+template<> class Base<bool> {
+  enum { basefield = 42; }     // (2) hmm
+};
+
+void g (DD<bool>& d)
+{
+  d.f();                      // (3) oops?
+}
+\end{verbatim}
+}
+
+\begin{itemize}[<+->]
+\item At point 2, the specialization changes the meaning of basefield.
+\item At point 1, if we bind basefield to the int, we have the wrong meaning.
+\item At point 3, an error message should be issued, but can't be if
+  we bound the meaning too early.
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Derivation and Class Templates}
+\framesubtitle{Dependent Base Class II}
+\begin{itemize}[<+->]
+\item Rule: \CC\ standards says that nondependent names are \emph{not}
+  looked up in dependent base classes.  (1) should be an error.
+\item If, instead, we make \texttt{basefield} dependent: 
+{\scriptsize
+\begin{verbatim}
+  void f() { this->basefield = 0; }     // (1) no problem
+  void f() { Base<T>::basefield = 0; }  // or this
+
+\end{verbatim}
+}
+\emph{we delay the binding until later}.
+\item  The second variation works, but note that it inhibits virtual
+  function calls...
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Template Template Parameters}
+\framesubtitle{The problem}
+Template parameters can be templates in-and-of themselves:
+\begin{itemize}[<+->]
+\item Consider a stack template that lets the user choose the
+  underlying container:
+{\scriptsize
+\begin{verbatim}
+Stack<int, std::vector<int>> vstack;
+\end{verbatim}
+}
+\vskip 12pt
+\item Specifying 'int' twice is clunky and a source of errors (DRY
+  principle).  This is better:
+{\scriptsize
+\begin{verbatim}
+Stack<int, std::vector> vstack;
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Template Template Parameters}
+\framesubtitle{The solution}
+\begin{itemize}[<+->]
+\item How is it done?
+{\scriptsize
+\begin{verbatim}
+template <typename T, 
+          template<typename ELEM> class CONT = std::deque> class Stack
+{
+  private: 
+
+    CONT<T> data;
+  
+    typedef typename CONT<T>::iterator iterator;
+
+   ...
+}
+\end{verbatim}
+}
+\item The \texttt{ELEM} is unnecessary, it's a placeholder, and isn't
+  actually needed (by the compiler... Humans tend to like it)
+\item Oddly, it must be \texttt{class CONT}, ``typename'' won't work there.
+
+
+\end{itemize}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Template Template Parameters}
+\framesubtitle{Details}
+\begin{itemize}[<+->]
+\item Another example: out-of-line member function definition...
+
+
+{\scriptsize
+\begin{verbatim}
+template<typename T, template<template> class CONT> class Stack
+void Stack<T,CONT>::Push (const T& elem)
+{
+  data.push_back(elem);
+}
+\end{verbatim}
+}
+\item Template template parameters for function templates are not
+  allowed.
+\item Note this won't actually compile, since the parameters for the
+  template template parameter must match exactly... and vectors and
+  deques have two template parameters...so it should really be:
+{\scriptsize
+\begin{verbatim}
+template <typename T, 
+          template<typename ELEM, 
+                   typename = std::allocator> 
+             class CONT = std::deque>               class Stack
+{...}
+
+
+template<typename T, 
+         template<template, template> class CONT>   class Stack
+void Stack<T,CONT>::Push (const T& elem)
+{
+  data.push_back(elem);
+}
+\end{verbatim}
+}
+
+\end{itemize}
+
+
+\end{frame}
+
+
+

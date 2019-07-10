@@ -1,0 +1,414 @@
+\subsection{Function Templates}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Function Templates}
+\framesubtitle{The obvious problem}
+
+\begin{itemize}[<+->]
+
+\item Overloaded functions are wonderful:
+\begin{columns}[t]
+\column{.5\textwidth}
+This sucks:
+{\scriptsize
+\begin{verbatim}
+double      fabs(double x);
+float       fabsf(float x);
+long double fabsl(long double x);
+\end{verbatim}
+}
+\column{.5\textwidth}
+This is awesome:
+{\scriptsize
+\begin{verbatim}
+double      abs(double x);
+float       abs(float x);
+long double abs(long double x);
+\end{verbatim}
+}
+\end{columns}
+\vskip 12pt
+\item But the unrepentant C-programmers say:  ``That's Terrible!  We
+  don't know which function is being called!''
+\begin{itemize}
+  \item Incorrect technically: figure out what the type is
+  \item Incorrect philosophically: \Emph{it doesn't and shouldn't
+    matter} if they all do semantically the same thing
+\end{itemize}
+\item But, then, we need to make sure that all overloads are
+  semantically equivalent
+\vskip 6pt
+\item So, make it easy to make them all the same!
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Function Templates}
+\begin{itemize}[<+->]
+\item This effectively creates an unbounded set of type-appropriate functions:
+{\scriptsize
+\begin{verbatim}
+template<typename T> inline
+T abs(const T& a) { return a<0 ? -a : b; }
+\end{verbatim}
+}
+\vskip 6pt
+\item Template instantiation is automatic:
+{\scriptsize
+\begin{verbatim}
+int i;    abs(i); // instantiates and calls abs<T> with T==int
+short s;  abs(s); // T == short
+double d; abs(d); // T == double
+Widget q; abs(q); // T == Widget... which had better make sense
+\end{verbatim}
+}
+\vskip 6pt
+\item If \texttt{Widget} doesn't have comparison and negation
+semantics, this is a compile time error.
+\vskip 6pt
+\item \Emph{Note: this is Duck Typing, not IS-A typing}
+\begin{itemize}
+  \item Usual \CC inheritance creates IS-A typing (Liskov Substitution
+    Principle)
+  \item Templates use ``Duck Typing''$^*$ : if it makes sense
+    \Emph{syntactically} it's OK.
+  \item ``If it looks like a number, walks like a number, and quacks
+    like a number, then we can take the absolute value of it''.
+  \item More commonly seen in E.G. Python (except here we catch
+    mistakes at compile-time).
+\end{itemize}
+\end{itemize}
+\pause
+\begin{center}
+{\scriptsize\Emph{$^*$Yes, this is the correct technical term;
+    Wikipedia has a whole page on Duck Typing.}
+}
+\end{center}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Typename or Class?}
+\begin{itemize}[<+->]
+\item These are identical:
+\begin{columns}[t]
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim}
+template<class T> ...
+\end{verbatim}
+}
+\column{.5\textwidth}
+{\scriptsize
+\begin{verbatim}
+template<typename T> ...
+\end{verbatim}
+}
+\end{columns}
+\vskip 12pt
+\item Notional but common idiom:
+\begin{itemize}
+\item Use \texttt{class} when it must be a user-defined type
+\item Use \texttt{typename} if it can also be a primitive type
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Overloading and Function Templates}
+\begin{itemize}[<+->]
+\item We can overload as usual:
+{\scriptsize
+\begin{verbatim}
+template<typename T> T& max( T& a, T& b) { return (a>b) ? a : b; }  // #1
+
+Widget& max( Widget& a, Widget& b) {                                // #2
+   return WidgetComp(a,b) ? a : b; 
+}
+\end{verbatim}
+}
+\item Overloads are preferred over template instantiations
+\item We can overload with additional template functions:
+{\scriptsize
+\begin{verbatim}
+template<typename T*> T* max(T* a, T*b) { return (*a < *b) ? b : a ; } // #3
+\end{verbatim}
+}
+\item All these overloads happily coexist, and overload resolution does what you'd expect.
+{\scriptsize
+\begin{verbatim}
+int i, j;           max(i,j)   // instantiates and calls #1 with T == int
+double x,y;         max(x,y)   // Ditto #1, T == double
+Widget wick, wock;  max(wick,
+                        wock)  //  Calls #2
+int* p, q;          max(p, q)  // instantiates #3 with T == int
+\end{verbatim}
+}
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Argument Deduction}
+
+\begin{itemize}[<+->]
+\item For template functions \emph{only}, the compiler will deduce the desired type:
+{\scriptsize
+\begin{verbatim}
+int i = max ( 3, 4 );  // deduces T is int (3 and 4 are integer literals
+
+int j = -1;
+
+max (i,j);            // T == int, deduced from argument types
+
+max(wick, wock);      // T == Widget, ditto
+
+max (j, 3.14);        // ints promote to doubles, 3.14 is a double, so
+                      // T deduced to be double
+
+max (j, wock);        // ERROR unless Widgets have a ctor that takes ints,
+                      // in which case T == Widget
+
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+\begin{frame}[fragile,t]
+\frametitle{Embarassing Template Problems}
+
+\begin{itemize}[<+->]
+\item Given our definition earlier, the last two won't actually compile:
+{\scriptsize
+\begin{verbatim}
+// Takes by nonconst&, returns nonconst &
+template<typename T> T& max( T& a, T& b) { return (a>b) ? a : b; }  // #1
+
+int i;     double d;
+
+max (i,d);  // oops
+\end{verbatim}
+}
+\item T is deduced to be double...
+\item \emph{but} the first parameter is an rvalue!
+\item ... which won't bind to a normal non-const \&.
+
+
+
+\item You might be tempted to do this:
+{\scriptsize
+\begin{verbatim}
+template <typename A, typename B>
+????  max( A& a, B& b ) { return (a<b) ? b : a ; } 
+
+// wait... what's the return type?
+\end{verbatim}
+}
+\item This is actually a difficult and embarassing problem: using a macro works, using a template doesn't!
+
+\item This drove the development of several items in \CC11.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Class Templates}
+\framesubtitle{More things you already know}
+\begin{itemize}[<+->]
+\item Parameterize a class by a type:
+{\scriptsize
+\begin{verbatim}
+template<typename T> class Vector { ... };
+\end{verbatim}
+}
+\item Again, \texttt{typename} or \texttt{class} mean the same thing.
+\item Implementing a member function out-of-line, it's still a template:
+{\scriptsize
+\begin{verbatim}
+template<typename T> T& Vector<T>::operator[](int i) {...};
+
+// and if it has a static integer member _count:
+
+template<class T> int Vector<T>::_count = 0; // define & initialize static member
+
+\end{verbatim}
+}
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Member Templates}
+\begin{itemize}[<+->]
+\item Member functions can be templates too, and work just like non-member functions:
+{\scriptsize
+\begin{verbatim}
+struct Fidget
+{
+   template<typename T> T Fuss(T&);   // unbounded set of overloaded member funs
+
+   Widget Fuss(Widget&);              // Add an overloaded version
+};
+
+// out-of-line definition of the template:
+
+template<typename T>  T Fidget::Fuss(T&) { ... }
+
+// out-of-line definition of the overload, just like normal
+
+Widget Fidget::Fuss(Widget& ) { ...}
+\end{verbatim}
+}
+
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Specialization of Class Templates}
+\begin{itemize}[<+->]
+\item Like providing overloads, we can customize class templates for certain types:
+{\scriptsize
+\begin{verbatim}
+template<typename T> class vector { .... };
+
+template<> class vector<bool> { ... } ;   // seemed like a good idea at the time...
+\end{verbatim}
+}
+\item Note the \texttt{template<>} up front; it's still a template, just with no free parameters
+\item Note that \emph{all} member functions must be specialized; you have to do the whole thing.
+\item Note that \texttt{vector<bool>} has \Emph{nothing} in common with \texttt{vector<anything else>}.  There's no Liskov Substitution principle here.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Specialization of Class Templates}
+\framesubtitle{Continued... fiddly bits}
+\begin{itemize}[<+->]
+\item Partial specialization:
+{\scriptsize
+\begin{verbatim}
+// it really looks like
+template <typename T, class Alloc> class vector { ... };
+
+// specialize for bool, but still allow any allocator
+template <class Alloc> class vector<bool, Alloc> { ... };
+\end{verbatim}
+}
+\item And you can have default template parameters
+{\scriptsize
+\begin{verbatim}
+// ACTUALLY, it really really looks like
+template <typename T, class Alloc = allocator<T>> class vector { ... };
+
+// specialize for bool, but still allow any allocator
+template <class Alloc = allocator<bool>> class vector<bool, Alloc> { ... };
+\end{verbatim}
+}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Nontype Template Parameters}
+\begin{itemize}[<+->]
+
+\item Not all template arguments have to be classes:
+{\scriptsize
+\begin{verbatim}
+template<typename T, size_t N>
+class array {
+  ...
+  T data[N]; // N is a compile-time constant, so this is fine --
+             // stores data on the stack
+};
+\end{verbatim}
+}
+\vskip 12pt
+\item Specialization is still possible if you really want to...
+{\scriptsize
+\begin{verbatim}
+template<size_t N> class array<bool, N> { ... }; // they didn't do this
+
+template<typename T> class array<T, 1> { ... }; // maybe an optimized impl?
+
+template<> class array<bool, 1> { ... }; // if you *really* want to
+\end{verbatim}
+}
+
+\vskip 12pt
+
+\item Nontype Template Parameters must generally be 
+\begin{itemize}
+  \item constant integral values, or
+  \item pointers to objects with external linkage (A.K.A. constant, compile-time known addresses)
+\end{itemize}
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{String Literals as Template Parameters}
+
+\begin{itemize}[<+->]
+\item String Literals are interesting: they work, but....
+{\scriptsize
+\begin{verbatim}
+template <const char* STR>  class Foo { .... };
+
+Foo<"Hello"> hi;  // ERROR: string literla ``Hello'' not allowed.
+
+extern const char* Greeting; // define in some .cpp somewhere
+
+Foo<Greeting> hi;   // OK, now we're all right
+\end{verbatim}
+}
+\vskip 12pt 
+\item This, because string literals in different compilation units probably don't actually have the same address.
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{... and other oddities}
+
+Floating-point literals not allowed either (\CC98)
+\begin{itemize}[<+->]
+ \item Mainly a fiddly business about how identical floating-point ops carried out at compile time vs. run time can produce different results.
+ \item Fixed in \CC11 (floating points ops are just fine)
+ \item However, be careful; each computation probably produces an independent template instantiation.  EG:
+{\scriptsize
+\begin{verbatim}
+template<double D> CTC { ... }; // some compile-time computation
+
+template<> CTC< 1.0 >} { ... };  // specialization
+
+CTC< (1.0/3)*3 > specialized;   // probably not the specialized version!
+\end{verbatim}
+}
+
+\end{itemize}
+
+\end{frame}
+
+
+
