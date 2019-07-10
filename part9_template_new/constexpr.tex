@@ -1,0 +1,457 @@
+\subsection{Constexpr Intro}
+
+\newcommand{\cexpr}{\texttt{constexpr }}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Constexpr }
+\begin{itemize}[<+->]
+\item A \Emph{\cexpr} expression is a compile-time constant evaluated
+  by the \emph{compiler} rather than the code.
+\item Intended to replace many uses of template metaprogramming with
+  something simpler (looks like ``normal'' \CC).
+\item Advantages:
+  \begin{itemize}
+    \item No runtime cost, no execution time, minimal footprint
+    \item Errors found at compile or link time
+    \item No synchronization / startup concerns. (Compare to the
+      order-of-global-statics-initialization fiasco.)
+  \end{itemize}
+\item The most important feature in \CC11?  Debatable
+\item The biggest?  Probably.
+  \begin{itemize}
+  \item The Clang team reports: \cexpr took as much work as the rest
+    of \CC11 put together
+  \item Introduces a new dimension of compile-time programming.
+  \end{itemize}
+
+\item \Emph{Much} (\CC11) \Emph{Much} (\CC14) easier than template metaprogramming!
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{\cexpr}
+\begin{itemize}[<+->]
+\item \Emph{new keyword}: \cexpr
+  \begin{itemize}
+  \item Chosen because it's unlikely to conflict with names in existing code
+  \end{itemize}
+\item implies \texttt{const}
+\item \cexpr can be applied to:
+\begin{itemize}
+  \item values 
+  \item functions
+  \item constructors (constexpr user-defined types)
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Constexpr resources}
+Oddly, I haven't found ``The'' \cexpr talk.  Here are some resources:
+\begin{itemize}[<+->]
+\item Scott Schurr, CppCon 2015: a very gentle intro.
+  \url{https://www.youtube.com/watch?v=fZjYCQ8dzTc}
+\item Scott Scurr, part 2.
+  \url{https://www.youtube.com/watch?v=qO-9yiAOQqc}
+\item Dietmar K\"{u}hl, ``Constant Fun'' CppCon 2016 (I like this one better)
+  \url{https://www.youtube.com/watch?v=qO-9yiAOQqc}
+\item Search youtube and channel9 for ``CppCon constexpr'', you'll
+  find other talks on specific things.
+\item Jason Turner's YouTube podcast series.
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Review of Variables and Constants}
+\framesubtitle{Edouard from quasardb}
+\begin{itemize}[<+->]
+\item Normal variable
+{\scriptsize\begin{verbatim}
+int val = 3;
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+  \item ``3'' is known at compile time
+  \item \texttt{val} doesn't exist until runtime
+  \item Value changes at runtime
+  \item Could have been initialized to \texttt{foo()} just as easily
+\end{itemize}
+\vskip 24pt
+\item Const variable
+{\scriptsize\begin{verbatim}
+const int val = foo(); // 'val' exists at runtime, value set at runtime,
+                       // can't change thereafter
+
+\end{verbatim}
+}
+
+\item[] Const variables have normal lifetime, they just can't be written
+  to after construction.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static consts (1)}
+\begin{itemize}[<+->]
+
+\item Static const variable (now we're getting somewhere)
+{\scriptsize\begin{verbatim}
+static const int a = 3;  // val is set at compile time, can't change
+                         // but when does the object's lifetime start?
+
+static const int b = a+2; // fine, if a's ctor has already run
+
+int array[b];             // OK, b is a compile-time constant
+
+static const int d = foo(..); // error - must initialized to 
+                              // compile-time value
+
+switch(val) {
+  case 1 : ...
+  case a : ... // allowed!
+  case b : ... // also OK
+}
+\end{verbatim}
+}
+\item \Emph{However...}
+\begin{itemize}
+  \item The issue we're skirting here is the ``static initialization order fiasco''
+  \item if \texttt{a} and \texttt{b} are defined in different
+    translation units, the relative order of instatiaion is \Emph{undefined}
+  \item This is the problem that Meyers-style singletons are intended
+    to solve
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static consts}
+\framesubtitle{more problems with}
+{\scriptsize\begin{verbatim}
+// in header file:
+struct IHaveConstants {
+  static const int i = 42;       // fine, allowed
+  static const double d = 3.14   // error, can't initialize in the header!
+  static const double pi;        // ... so we have to init later
+  static const char* name;       // ditto
+};
+
+// in some .cpp file somewhere...
+const double IHaveConstants::pi = 3.14; // initialize elsewhere
+const char* IHaveConstants::name = "Camel";
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item For class statics, only integers can be initialized in the class declaration.
+\item Order-of-initialization still an issue
+\item For all static const variables:
+  \begin{itemize}
+  \item Note: it's a compile-time constant, but \Emph{lifetime starts
+    during program startup}.
+  \item So the compiler can assume it knows what the value of the
+    variable is, although the object won't exist until program startup
+  \item And notice: \emph{there is an object}, it's an lvalue, it
+    has an address...
+  \end{itemize}
+\end{itemize}
+\pause
+\begin{center}\Emph{\cexpr to the rescue}\end{center}
+\end{frame}
+
+\subsection{Constexpr Values}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{constexpr values}
+\begin{itemize}[<+->]
+\item declaring variables as \cexpr:
+  \begin{itemize}
+  \item Initialization at compile-time, not program startup
+  \item Can be specified in .h file (rather than declare in .h and
+    define in .cpp)
+  \item Not restricted to integral types.
+  \end{itemize}
+\pause
+{\scriptsize\begin{verbatim}
+// in header file, or anywhere
+
+constexpr int answer = 42;
+
+struct IHaveConstants {
+  static constexpr int i = answer;        // fine, allowed
+  static constexpr double pi = 3.14       // Aha!
+
+  constexpr const char* name = "Hi";      // oddly, needs the const
+};
+
+\end{verbatim}
+}
+\item Note: \texttt{IHaveConstants::i} does not have
+  order-of-initialization issues relative to where \texttt{answer} is
+  defined; it's all compile time.
+\item And can be of user-defined type, as we'll see later.  
+\end{itemize}
+
+\end{frame}
+
+
+
+
+\subsection{constexpr functions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{\cexpr functions}
+\begin{itemize}[<+->]
+\item \cexpr functions: a much nicer alternative to
+  recursive templates.
+
+\item Recall: templates weren't designed for this kind of thing
+\item Templates are Turing-complete... kind of by accident.
+\item ... so the syntax can get nasty.
+\item \cexpr functions are Turing-complete by design
+\item .... so the syntax is much, much nicer.
+
+%% \item Recall from our earlier example: 
+
+%% {\scriptsize\begin{verbatim}
+%% template<int N> struct Factorial
+%% {
+%%    enum { result = N * Factorial<N-1>::result };
+%% };
+
+%% template<> struct Factorial<0> { enum {result = 1}; };
+
+%% \end{verbatim}
+%% }
+
+%% \item Recursive templates to compute factorial at compile time.
+%%   Compare to....
+
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Comparison of compile-time Factorials}
+\begin{itemize}[<+->]
+\item In \CC11, \cexpr functions are allowed to have only one
+  statement:
+\vskip 12pt
+\begin{columns}[t]
+\column{.5\textwidth}
+\Emph{\CC98, Templates}
+{\scriptsize\begin{verbatim}
+template<int N>
+struct Factorial {
+enum { val = N * Factorial<N-1>::val };
+};
+
+template<> struct Factorial<0> 
+{  enum {val = 1};}
+\end{verbatim}
+}
+
+\column{.5\textwidth}
+\Emph{\CC11, Constexpr}
+{\scriptsize\begin{verbatim}
+constexpr int Factorial(N)
+{
+  return (N >= 0) 
+         ? N*Factorial(N-1)
+         : 1;
+}
+\end{verbatim}
+}
+\end{columns}
+\vskip 6pt
+\item \Emph{\CC14} removes most limitations on \cexpr functions:
+{\scriptsize\begin{verbatim}
+constexpr int factorial(N)
+{
+   int res = 1;
+   for (int i = N; i > 0; --i)
+     res *= i;
+
+   return res;
+}
+\end{verbatim}
+} 
+
+\end{itemize}
+\pause
+\begin{center}
+These days, if you have \CC11 you probably have \CC14,
+\Emph{so we'll talk \CC14 \cexpr from here on out.}
+\end{center}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Is it compile time or not?}
+\begin{itemize}[<+->]
+\item \cexpr function can be called at runtime just like
+  normal functions
+\item In order to run at compile time, all inputs and internal
+  function calls must also be \cexpr
+{\scriptsize\begin{verbatim}
+int i;
+...
+return Factorial(5); // compile-time
+return Factorial(i); // run time
+\end{verbatim}
+}
+\item Limits on \cexpr functions:
+  \begin{itemize}
+    \item All inputs must be literals
+    \item All function calls must be \cexpr
+    \item No virtual function calls, etc.
+  \end{itemize}
+\item Things you can't do in \CC14 \cexpr functions:
+  \begin{itemize}
+  \item asm, goto, labels, try-block, throw
+    \item (labels in case statements are OK)
+    \item local variables must be of literal type, non-static,
+      non-thread-local, initialized, non-volatile, ...
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{constexpr functions in \CC14}
+\pause
+\begin{itemize}[<+->]
+
+\item Nobody memorizes all of this; be reasonable and the compiler
+  will gently correct you.
+\item Think of it as a \CC\ interpreter that gets run at compile time
+  to get the answer.
+\item Limitiations basically to keep this interpreter simple.
+\item \Emph{Note}: \cexpr functions can have any of these
+  constructs, they just can't \Emph{execute} them.  
+  \begin{itemize}
+    \item If the execution path doesn't have a forbidden construct,
+      it's just fine.
+  \end{itemize}
+\item This leads to interesting constructs (next slide)
+\end{itemize}
+
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{``Throw'' idiom}
+\begin{itemize}[<+->]
+\item Example: handling Factorial of negative integers.
+{\scriptsize\begin{verbatim}
+constexpr int factorial(N)
+{
+  if (N<0) throw "Range Error";
+  int res = 1;
+  for (int i = N; i > 0; --i)
+    res *= i;
+
+  return res;
+}
+
+
+factorial(5);    // fine, compile time
+factorial(-1);   // compile time error -- 
+                 // can't throw in constexpr function
+
+factorial( foo() ); // run-time
+                    // Throws if foo() returns negative
+\end{verbatim}
+}
+
+\item \ [Note: GCC < 5.4 gets this wrong!]
+
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{How far can it go?}
+\begin{itemize}[<+->]
+\item \cexpr is Turing Complete
+\item This is a new dimension of compile-time programming (orthogonal
+  to templates)
+\item Jason Turner has compile-time random number generators \Emph{(!)}
+\url{https://www.youtube.com/watch?v=rpn_5Mrrxf8}
+\item \cexpr is still being explored
+\item \cexpr is still being propagated through the standard library
+\end{itemize}
+\end{frame}
+
+
+
+\subsection{Constexpr Objects}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Constexpr Objects}
+\begin{itemize}[<+->]
+\item To make a \cexpr object of a user defined type, make a 
+  \cexpr constructor:
+{\scriptsize\begin{Verbatim}
+struct complex_num {
+   constexpr complex_num(double r, double i) : re(r), im(i) {}
+
+   constexpr double abs_squared() const { return re*re+im*im; }
+  
+   double re;
+   double im;   
+};
+
+int main()
+{
+   constexpr complex_num c(3,4);
+   return c.abs_squared();
+}
+\end{Verbatim}
+}
+\item (live demo \#2 : put this into the compiler explorer, note the
+  extreme lack of assembly instructions.)
+\item We have compile-time objects of arbitrary complexity.
+\item Jason Turner has  compile-time maze generators and solvers \Emph{(!)}
+\url{https://www.youtube.com/watch?v=3SXML1-Ty5U}
+\item[] \ \CC\ Weekly with Jason Turner on YouTube is good stuff.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Constexpr Summary}
+\begin{itemize}[<+->]
+\item What about \cexpr std::vectors, std::strings....
+\item Coming -- they're going through the standard library right now
+  and adding \cexpr where appropriate
+\item This is a whole new dimension to the language
+\begin{itemize}
+  \item Orthogonal to templates, but not exclusive
+  \item Template metaprogramming and \cexpr complement each other.
+\end{itemize}
+\vskip 6pt
+\item Advice: use \cexpr whenever possible.
+\end{itemize}
+\end{frame}

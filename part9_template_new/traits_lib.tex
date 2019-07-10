@@ -1,0 +1,304 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Type Traits Refresher}
+Recall our ``Is Class'' trait...
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+   // Now for some template functions that will never get called, but have distinct return types.
+
+   // This one takes a pointer-to-member of C, and returns a One.
+   template<typename C> static One test(int C::*);   // #1
+
+   // This one will match anything else...
+   template<typename C> static Two test(...);        // #2
+
+public:
+
+   enum { value = (sizeof(test<T>(0)) == 1) };
+
+};
+\end{verbatim}
+}
+
+\pause
+The \CC11 standard library defines this for us, and many many others...
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{The type\_traits header}
+{\ \CC11\ } standard library: type\_traits.h
+
+\begin{columns}[t]
+
+\column{.5\textwidth}
+{\tiny
+// 20.11.3, helper class:
+
+template <class T, T v> struct integral\_constant;
+
+typedef integral\_constant<bool, true> true\_type;
+
+typedef integral\_constant<bool, false> false\_type;
+
+// 20.11.4.1, primary type categories:
+
+template <class T> struct is\_void;
+
+template <class T> struct is\_integral;
+
+template <class T> struct is\_floating\_point;
+
+template <class T> struct is\_array;
+
+template <class T> struct is\_pointer;
+
+template <class T> struct is\_lvalue\_reference;
+
+template <class T> struct is\_rvalue\_reference;
+
+template <class T> struct is\_member\_object\_pointer;
+
+template <class T> struct is\_member\_function\_pointer;
+
+template <class T> struct is\_enum;
+
+template <class T> struct is\_union;
+
+template <class T> struct is\_class;
+
+template <class T> struct is\_function;
+
+// 20.11.4.2, composite type categories:
+
+template <class T> struct is\_reference;
+
+template <class T> struct is\_arithmetic;
+
+template <class T> struct is\_fundamental;
+
+template <class T> struct is\_object;
+
+template <class T> struct is\_scalar;
+
+template <class T> struct is\_compound;
+
+template <class T> struct is\_member\_pointer;
+
+// 20.11.4.3, type properties:
+
+template <class T> struct is\_const;
+
+template <class T> struct is\_volatile;
+
+template <class T> struct is\_trivial;
+
+template <class T> struct is\_trivially\_copyable;
+
+template <class T> struct is\_standard\_layout;
+
+
+}
+\column{.5\textwidth}
+{\tiny
+template <class T> struct is\_pod;
+
+template <class T> struct is\_literal\_type;
+
+template <class T> struct is\_empty;
+
+template <class T> struct is\_polymorphic;
+
+template <class T> struct is\_abstract;
+
+template <class T> struct is\_signed;
+
+template <class T> struct is\_unsigned;
+
+template <class T, class... Args> struct is\_constructible;
+
+template <class T> struct is\_default\_constructible;
+
+template <class T> struct is\_copy\_constructible;
+
+template <class T> struct is\_move\_constructible;
+
+template <class T, class U> struct is\_assignable;
+
+template <class T> struct is\_copy\_assignable;
+
+template <class T> struct is\_move\_assignable;
+
+template <class T> struct is\_destructible;
+
+template <class T, class... Args> struct is\_trivially\_constructible;
+
+template <class T> struct is\_trivially\_default\_constructible;
+
+template <class T> struct is\_trivially\_copy\_constructible;
+
+template <class T> struct is\_trivially\_move\_constructible;
+
+template <class T, class U> struct is\_trivially\_assignable;
+
+template <class T> struct is\_trivially\_copy\_assignable;
+
+template <class T> struct is\_trivially\_move\_assignable;
+
+template <class T> struct is\_trivially\_destructible;
+
+template <class T, class... Args> struct is\_nothrow\_constructible;
+
+template <class T> struct is\_nothrow\_default\_constructible;
+
+template <class T> struct is\_nothrow\_copy\_constructible;
+
+template <class T> struct is\_nothrow\_move\_constructible;
+
+template <class T, class U> struct is\_nothrow\_assignable;
+
+template <class T> struct is\_nothrow\_copy\_assignable;
+
+template <class T> struct is\_nothrow\_move\_assignable;
+
+template <class T> struct is\_nothrow\_destructible;
+
+template <class T> struct has\_virtual\_destructor;
+
+
+
+}
+
+\end{columns}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: \texttt{is\_pointer}}
+\begin{itemize}[<+->]
+\item Go look at the \CC11 standard, section 20.11.2.
+\item OK, what do you do with it?
+{\scriptsize\begin{verbatim}
+#include <type_traits>
+using namespace std;
+
+template<typename T> int foo(T t)
+{
+  if ( is_pointer<T>::value) 
+    return 5;
+  return 16;
+}
+
+int main() {
+  	int * i;
+  	return foo(*i);
+}
+\end{verbatim}
+}
+
+
+\item (this is live demo \#1; put this into Mat Godbolt's compiler
+  explorer \url{https://godbolt.org/} and see what happens.)
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{\texttt{std::enable\_if}}
+\begin{itemize}[<+->]
+\item A powerful trait for using SFINAE and other tricks:
+\vskip 6pt
+{\begin{verbatim}
+
+template< bool B, class T = void > struct enable_if;
+\end{verbatim}
+}
+\vskip 6pt
+\item If B is true, std::enable\_if has a public member typedef \texttt{type}, equal to T; otherwise, there is no member typedef. 
+\item Use SFINAE to specialize or constrain template
+\item Common techniques:
+  \begin{itemize}
+    \item Use enable\_if to define the return type
+    \item Use enable\_if to define an extra, defaulted template parameter
+  \end{itemize}
+\end{itemize}
+\pause
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{\texttt{std::enable\_if}}
+
+\begin{columns}[t]
+
+\column{.5\textwidth}
+Use as the return type:
+{\scriptsize\begin{verbatim}
+
+// 1. the return type (bool) is only valid 
+// if T is an integral type:
+
+template <class T> 
+
+typename enable_if<is_integral<T>::value,
+                   bool>::type
+
+is_odd (T i) {return bool(i%2);}
+
+\end{verbatim}
+}
+\pause
+\column{.5\textwidth}
+Use as a default template arg:
+{\scriptsize\begin{verbatim}
+
+// 2. the second template argument is only 
+// valid if T is an integral type:
+
+template <class T, class NOTUSED = 
+          typename enable_if
+             <is_integral<T>::value>
+           ::type>
+
+bool is_even (T i) {return !bool(i%2);}
+\end{verbatim}
+}
+
+\end{columns}
+\vskip 12pt
+\pause
+Either way:
+{\scriptsize\begin{verbatim}
+int main() {
+
+  short int i = 1;    // code does not compile if type of i is not integral
+
+  std::cout << std::boolalpha;
+  std::cout << "i is odd: " << is_odd(i) << std::endl;
+  std::cout << "i is even: " << is_even(i) << std::endl;
+
+  return 0;
+}
+
+\end{verbatim}
+}
+
+
+\end{frame}

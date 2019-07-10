@@ -1,0 +1,800 @@
+\subsection{Basics of Variadic Tempates}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Variadic Templates}
+\begin{itemize}[<+->]
+\item The most mind-blowing new feature in \CC11
+\item The definitive talk: Andrei Alexandrescu, ``Variadic Templates
+  are Funadic'', GoingNative 2012:
+  \url{https://channel9.msdn.com/Events/GoingNative/GoingNative-2012/Variadic-Templates-are-Funadic}
+\item The following slides are directory stolen from Andrei.  Maybe
+  we'll just watch him instead...
+\item Peter Sommerlad, ``Variadic Templates in \CC11 / \CC14 - An
+  Introduction'', CppCon 2015: \url{https://www.youtube.com/watch?v=R1G3P5SRXCw}
+\item Micha\l{} Dominiak, ``Variadic expansion in examples'', CppCon 2016 \url{https://youtu.be/Os5YLB5D2BU}
+\item Jason Turner (again) has some nice examples of variadic expansion.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Motivation}
+\begin{itemize}[<+->]
+\item Define typesafe variadic functions
+  \begin{itemize}
+    \item C99 macros safer than \CC03 variadic functions?!
+    \item Forwarding with before/after hooks
+    \begin{itemize}  \item \emph{Uses ``universal references'', about
+        which more later}
+  \end{itemize}
+  \end{itemize}
+\item Define algebraic types without contortions
+  \begin{itemize}[<+->]
+  \item Sum types (\texttt{variant})
+    \item Example: \texttt{NullableType<T>} in the Terminal: it should
+      have a ctor that matches T's ctor, but how to write?
+  \item Product types (\texttt{tuple})
+  \end{itemize}
+\item Specify settings and parameters in policy-based designs
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Pre-\CC11}
+\framesubtitle{Peter Sommerlad, CppCon 2015}
+\begin{itemize}[<+->]
+\item Alexandrescu, ``Modern C++ Design'', and Boost library had heavy
+  infrastructure for Tuple and other things:
+  \begin{itemize}
+    \item \texttt{boost::bind()}
+    \item \texttt{boost::tuple<...>}
+    \item \texttt{Loki::Typelist<Head,Tail>}
+  \end{itemize}
+\item Requires tedious repetition, or
+\item Serious macro magic: Boost has a macro metaprogramming library!
+{\scriptsize\begin{verbatim}
+#define BOOST_VARIANT_AUX_DECLARE_PARAMS \
+  BOOST_PP_ENUM( \
+    BOOST_VARIANT_LIMIT_TYPES \
+  , BOOST_VARIANT_AUX_DECLARE_PARAMS_IMPL \
+  , T \
+  ) \
+/**/
+\end{verbatim}
+}
+\item (yes, those are \emph{recursive macros!} Chthulu shall rise...)
+\item Both cases have a built-in maximum.
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Fundamentals}
+{\scriptsize\begin{verbatim}
+template <typename... Ts>  // Ts is "template parameter pack"
+class C { ... };
+
+template <typename... Ts>
+void fun (const Ts&... vs> // vs is "value parameter pack"
+{ ... } 
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+
+\item These are new kinds; they are unlike any other construct in the language.
+
+\item \texttt{Ts} is not a type; \texttt{vs} is not a value!
+{\scriptsize\begin{verbatim}
+typedef Ts MyList; // error!
+Ts var;            // error
+auto copy = cs;    // error
+\end{verbatim}
+}
+\item \texttt{Ts} is an alias for a list of types
+\item \texttt{vs} is an alias for a list of values
+\item Either list may be potentially empty (!)
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Names, Declarations, Expansion}
+\begin{itemize}[<+->]
+\item If the ... is in front of the name, {\bf define} the name as a parameter pack
+{\scriptsize\begin{verbatim}
+template < typename ...Ts >  // Ts is a parameter pack
+\end{verbatim}
+}
+\item if the ... is after the name, {\bf expand} the name into a
+  comma-separated list
+{\scriptsize\begin{verbatim}
+Ts... // produces: T1, T2, .... Tn
+\end{verbatim}
+}
+\item In between two names, define second name as a list of
+  parameters, given by the first (it's ``in front of'' the second one)
+{\scriptsize\begin{verbatim}
+template <typename ...Ts> // as above
+void foo (const Ts& ... vs); // vs is a pack
+\end{verbatim}
+}
+\item Think of it as ``smart'' textual expansion (it really isn't
+  textual expansion, it's much deeper)
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Operations on Parameter Packs}
+\begin{itemize}[<+->]
+\item Can only be used in one of two ways
+\item Apply the \Emph{new} \texttt{sizeof...} operator to it:
+{\scriptsize\begin{verbatim}
+size_t items = sizeof...(ts); // or vs
+\end{verbatim}
+}
+\begin{itemize}
+  \item ``Completely useless'' according to Alexandrescu, but we'll
+    use it later
+\end{itemize}
+\item Expand the pack into a comma-separated list
+{\scriptsize\begin{verbatim}
+template<typename... Ts>
+void foo(Ts const&... vs)
+{
+   bar (3.14, vs..., "hi");  // expand vs (safe commas)
+}
+\end{verbatim}
+}
+\item ... and nothing else!
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{A quick example}
+\begin{itemize}[<+->]
+\item It's good to stay grounded, so: print any number of things of
+  any type to a line.
+{\scriptsize\begin{verbatim}
+
+void print() { cout << endl; }   // base case
+
+template<typename T, typename ...Ts>
+void print (const T& t, const Ts& ...ts)
+{
+   cout << t << ' ';   // peel off first arg
+   print(ts...);       // "recurse" on the rest
+}
+
+
+int main()
+{
+   print ("HI", 3, 1.4);
+}
+
+// produces this:
+HI 3 1.4
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion Rules}
+
+\begin{tabular}{ll}
+\hline
+Use & Expansion \\ \hline
+\texttt{Ts...} & \texttt{T1, T2, ... Tn} \\
+\texttt{Ts\&\&...}& \texttt{T1\&\&, T2\&\&, ... Tn\&\&} \\
+\texttt{x<Ts,Y>::z...}& \texttt{X<T1,Y>::z, ... X<Tn,Y>::z} \\
+\texttt{x<Ts\&, Us>...}& \texttt{x<T1\&, U1>, x<T2\&, U2>, ... x<Tn\&, Un>} \\
+\texttt{func(5, vs)...}& \texttt{func(5, v1), func(5, v2), ... func(5, vn)} \\ \hline
+\end{tabular}
+
+\begin{itemize}[<+->]
+\item Assume for demonstration purposes:
+\begin{itemize}
+  \item Ts is A, B, C
+  \item Us is Q, R, S
+  \item vs is x, y, z
+\end{itemize}
+\item Then:
+    \begin{itemize}
+      \item Ts.... $\to$ A, B, C
+      \item X<Ts, Z>... $\to$ X<A,Z>, X<B,Z>, X<C,Z>
+      \item x<Ts, Us>... $\to$ x<A,Q>, x<B,R>, x<C,S>
+      \item func(5, vs)... $\to$ func(5,x), func(5,y), func(5,z)
+      \item f(vs, vs)... $\to$ f(x,x), f(y,y), f(z,z)  
+\end{itemize}
+\item dot products, cross products, Cartesian products are all
+  possible
+\item Examples coming soon...
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion locations}
+\framesubtitle{Where can we expand?}
+\begin{itemize}[<+->]
+\item Initializer lists:
+{\scriptsize\begin{verbatim}
+any a[] = { vs... };
+\end{verbatim}
+}
+\item Base specifiers:
+{\scriptsize\begin{verbatim}
+template< typename... Ts> struct C : public Ts... {};
+
+template< typename... Ts> struct D : public Box<Ts>... {};
+\end{verbatim}
+}
+
+\item Member initializer lists:
+{\scriptsize\begin{verbatim}
+// inside struct D...
+template< typename... Us >
+D(Us... vs) : Box<Ts>(vs)... {}
+\end{verbatim}
+}
+
+\item Template argument lists:
+{\scriptsize\begin{verbatim}
+std::map<Ts...> m;
+\end{verbatim}
+}
+
+\item Exception specifications (which are gone from the language)
+\item Attribute lists (but never mind)
+{\scriptsize\begin{verbatim}
+struct [[ Ts... ]] IAmFromTheFuture {};
+\end{verbatim}
+}
+
+\item Lambda capture lists
+{\scriptsize\begin{verbatim}
+template <class... Ts> void fun(Ts... vs) {
+  auto g = [&vs...] { return foo(vs...); }
+  g();
+}
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Where can't we expand?}
+\begin{itemize}[<+->]
+\item Declarations (to declare something for every element in a pack)
+\item Statements (to execute a statement for every element in a pack)
+\begin{itemize}
+  \item Mainly because what happens if the pack is empty?
+
+\end{itemize}
+\item We will come back to this later.
+\end{itemize}
+\end{frame}
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Multiple expansions}
+%% \begin{itemize}[<+->]
+%% \item Expansion proceeds outwards
+%% \item These are all different expansions:
+%% {\scriptsize\begin{verbatim}
+%% template< class... Ts> void fun(Ts... vs) {
+%%   gun(A<Ts...>::hun(vs)...); // A<T1, T2, T3>::hun(v1), A<T1
+%%   gun(A<Ts...>::hun(vs...)); // A<T1, T2>::hun(v1, v2)
+%%   gun(A<Ts>::hun(vs)...);    // A<T1>::hun(v1), A<T2>::hun(v2)
+%% }
+%% \end{verbatim}
+%% }
+%% \end{itemize}
+%% \end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Andrei shows off: VVTTs}
+%% {\scriptsize\begin{verbatim}
+%% template <
+%%    template T,
+%%    template <
+%%       template<class...> class... Policies
+%%    >
+%%  >
+%% class Variadic_Variadic_Template_Templates;
+%% \end{verbatim}
+%% }
+%% \begin{itemize}[<+->]
+%% \item Yeah, it works.
+%% \item Template: fixed parameter T,
+%% \item parameterize with variable number of policies
+%% \item Each of which takes a variable number of arguments
+%% \item Don't ask me how it works...
+%% \end{itemize}
+%% \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example}
+\begin{itemize}[<+->]
+\item Pattern matching:
+{\scriptsize\begin{verbatim}
+template <class T1, class T2> bool isOneOf( const T1& a, const T2& b)
+{  return a == b ; }
+
+template <class T1, class T2, class... Ts>
+bool isOneOf(const T1& a, const T2& b, const Ts&... vs)
+{
+   return a == b || isOneOf(a, vs...);
+}
+
+assert( isOneOf (1, 2, 3.5, 4, 1, 2 ) );
+\end{verbatim}
+}
+\item Very fast, just comparisons and jumps.
+\item Not recursion: each call is a function of the same name with fewer arguments
+\end{itemize}
+\end{frame}
+
+\subsection{Variadic Expansion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion: calling a function for every argument}
+\begin{itemize}[<+->]
+\item Earlier we mentioned that you can't expand statements (to execute a statement for every element in a pack)
+\item We'd like to do this:
+{\scriptsize\begin{verbatim}
+template <typename... Ts> void foo ( Ts... vs)
+{
+  bar(vs)...; // execute for each element -- doesn't work!
+  // "expected expression"
+  // "expected ; before ..."
+  // "pack not expanded"
+}
+\end{verbatim}
+}
+\item A solution has been developed:  Use an initializer list
+{\scriptsize\begin{verbatim}
+template<typename... Ts>
+void foo (const Ts& ... vs)
+{
+   (void) std::initializer_list<int>{ ( bar(vs), 0 )... };
+}
+\end{verbatim}
+}
+\item How does it work?
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion: calling a function for every argument}
+\begin{itemize}[<+->]
+\item The interesting bit expands to:
+{\scriptsize\begin{verbatim}
+(void) std::initializer_list<int>{ (bar(v1),0) , (bar(v2),0) ... };
+\end{verbatim}
+}
+\item Recall that the comma operator evaluates the first operand and
+  discards the result, then evaluates the second and returns that
+  value.
+\item Each ``element'' in the \texttt{initializer\_list} is :
+\begin{itemize}
+  \item a function call that is exectuted, and the return value
+    ignored;
+  \item An integer constant '0', which is the result of the expression
+\end{itemize}
+\item The compiler is happy to make a list of zeroes and then ignore it.
+\vskip 12pt
+\item We can use this to explore the details of parameter pack expansion.
+
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion: calling a function for every argument}
+The setup:
+{\scriptsize\begin{verbatim}
+#include <iostream>
+using namespace std;
+
+template<typename T>
+void print_impl(const T& t) { cout << t << ' '; }
+
+template<typename ...Ts>
+void print (const Ts& ...ts)
+{
+   (void)initializer_list<int> { (print_impl(ts), 0)... };
+   cout << endl;
+}
+
+int main() {
+  print ("HI", true, 42);
+}
+
+// produces
+
+HI 1 42
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion: calling a function for every argument}
+Now add an intermediatry to experiment with:
+{\scriptsize\begin{verbatim}
+template<typename T>
+void print_impl(const T& t) { cout << t << ' '; }
+
+template<typename ...Ts>
+void print (const Ts& ...ts)
+{
+   (void)initializer_list<int> { (print_impl(ts), 0)... };
+   cout << endl;
+}
+
+template<typename... Ts>
+void expand(Ts... vs)
+{
+  // Fiddle with this line to get interesting results
+   (void) initializer_list<int> { ( print(vs...), 0) }; 
+}
+
+int main() {
+  expand ("HI", true, 42); // just like print("HI", true, 42)
+}
+
+// produces
+HI 1 42
+
+\end{verbatim}
+}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Expansion: Demo}
+Go play with this:
+{\tiny\begin{verbatim}
+#include <iostream>
+using namespace std;  // bad in real code, good for slides
+
+template<typename T>
+void print_impl(const T& t) { cout << t << ' '; }
+
+template<typename ...Ts>
+void print (const Ts& ...ts)
+{
+   (void)initializer_list<int> { (print_impl(ts), 0)... };
+   cout << endl;
+}
+
+template<typename... Ts>
+void expand(Ts... vs)
+{
+   (void) initializer_list<int> 
+   { 
+     ( print(vs...), 0)
+      //( print(vs), 0)... 
+      //( print(vs..., vs), 0)...
+      //( print(vs, vs, vs), 0)...
+      //( print(vs, vs..., vs), 0)...
+   }; 
+}
+
+int main()
+{
+   expand ("HI", true, 42);
+}
+\end{verbatim}
+}
+\end{frame}
+
+\subsection{Real-Life Example}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: what Terminal could be}
+\framesubtitle{Motivation}
+Problem statement: Terminal message processing.
+\begin{itemize}[<+->]
+\item A JSON message arrives, with a field ``\$type'' holding the name
+  of a class
+  \begin{itemize}
+  \item Create an object of that type
+  \item Deserialize the JSON message into it
+  \item Execute some code to do something
+  \end{itemize}
+\item The problem is to turn a \Emph{runtime value} (the string in the \$type
+  field) into an object of the correct type (a \Emph{compile-time
+    thing}) and then run a specific function (also a
+  \Emph{compile-time} thing).
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Terminal Message Handling}
+\framesubtitle{The Obvious Solution}
+\begin{itemize}[<+->]
+\item The obvious solution:
+{\scriptsize\begin{verbatim}
+void OnIncomingMessage(const string& msg)
+
+  IJetStream in;    
+  in.Parse(msg);
+
+  string type;      
+  in || field("$type", type);
+
+  if (type == "Camel")      { Camel c; in || c; ... Camel stuff }
+
+  else if (type == "Horse") { Horse h; in || h; ... ride Horse  }
+
+  else if (type == "Rhino") { Rhino r; in || r; ... ride Rhino? }
+  }
+\end{verbatim}
+}
+
+\item ... but there are 50 messages ...
+\item ... many of which are handled by other Reusable modules ...
+\item The Device devs have to edit and maintain this huge chunk of
+  code.
+\item Note: \Emph{every time this is touched} the whole thing should
+  be revalidated.
+\vskip 12pt Can we do better?  Sure!
+\end{itemize}
+
+
+\end{frame}
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Terminal Message Handling}
+\framesubtitle{Refactoring 1}
+%\begin{center} \Emph{Refactor!}\hskip 1in \end{center}
+\Emph{Refactor!}
+\begin{columns}[t]
+\pause
+\column{.4\textwidth}
+First, MessageHandler fns:
+{\scriptsize\begin{verbatim}
+  IJetStream in;
+  in.Parse(msg);
+
+  string type;
+  in || field("$type", type);
+
+  if (type == "Camel") {    
+    Camel c; 
+    in || c;
+    HandleMsg(c);
+  }
+  else if (type == "Horse") { 
+    Horse h; 
+    in || h;
+    HandleMsg(h);
+  }
+  else if (type == "Rhino") { 
+    Rhino r; 
+    in || r;
+    HandleMsg(r);
+  }
+\end{verbatim}
+}
+\pause
+\column{.6\textwidth}
+Next, template the deserialization:
+{\scriptsize\begin{verbatim}
+template<typename T> void Dispatch(IJetStream& in)
+{
+  T t;
+  in || t;
+  HandleMsg(t);
+}
+
+
+  IJetStream in;
+  in.Parse(msg);
+
+  string type;
+  in || field("$type", type);
+
+
+  if      (type == "Camel") Dispatch<Camel>(in);
+  else if (type == "Horse") Dispatch<Horse>(in); 
+  else if (type == "Rhino") Dispatch<Rhino>(in);
+
+\end{verbatim}
+}
+
+\end{columns}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{The Essence of Message Handling}
+\begin{itemize}[<+->]
+\item Now we are down to the essiential code: \Emph{Associating a
+  string with a type}.
+\item Much better, but we still have a giant block of \texttt{if
+  ... else} code to maintain
+\vskip 12pt
+\item Let's get the compiler to write that if-block for us.
+\vskip 12pt
+\item For the sake of the example (and looking at assemby), let's
+  simplify the example:
+  \begin{itemize}
+    \item Associate integers to types (rather than strings)
+    \item ``MessageHandler'' returns an int
+    \item When that type comes in, dispatch to the handler and see
+      what comes back.
+\end{itemize}
+\item Oversimplified (associating integers to other integers at
+  compile time is easy, just use traits) but it's a good example.
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Simplified Example}
+\begin{itemize}[<+->]
+\item Our example, excluding the JSON stuff, now amounts to this:
+{\scriptsize\begin{verbatim}
+struct Camel { static constexpr int type = 1; };
+struct Horse { static constexpr int type = 2; };
+struct Rhino { static constexpr int type = 3; };
+
+inline int HandleMsg(Camel&) { return 13;}
+inline int HandleMsg(Horse&) { return 17;}
+inline int HandleMsg(Rhino&) { return 23;}
+
+template<typename T> int Dispatch()
+{
+      T t;
+      return Result(t);
+} 
+
+int main(int argc, char** argv)
+{
+   if      (argc == Camel::type) return Dispatch<Camel>();
+   else if (argc == Horse::type) return Dispatch<Horse>();
+   else if (argc == Rhino::type) return Dispatch<Rhino>();
+   return -1;
+}
+
+\end{verbatim}
+}
+
+\item Note: value to compare with now in message type
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Variadic Message Handling}
+\framesubtitle{Live Demo}
+{\tiny\begin{verbatim}
+// as above, except now...
+
+template<typename ThisOne, typename... TheOthers>
+struct Dispatcher
+{
+   static int eval(int input)
+      {
+         if (input == ThisOne::type)
+            return Dispatch<ThisOne>();            
+         else
+            return Dispatcher<TheOthers...>::eval(input);
+      }
+};
+
+template<typename T> struct Dispatcher<T> 
+{ 
+   static int eval(int input) 
+      { 
+         if (input == T::type) return Dispatch<T>();
+         return -1;
+      }
+};
+
+int main(int argc, char** argv)
+{
+   return Dispatcher<Camel, Horse, Rhino>::eval(argc);
+}
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time nested if/else statement}
+\begin{itemize}[<+->]
+\item The compiler now generates the big if/else block for us.
+\item The resulting code is \Emph{exactly} the same as if we had
+  written it by hand.
+\item We could deliver this to the device teams, all they need to know
+  is the list of message types, the library does the rest.
+
+\vskip 12pt
+\item The ``real'' terminal doesn't do this, because it has to work on
+  VxWorks 6.9... the result is \emph{much} less efficient, has more stuff at
+  runtime (or at least at program startup), and is generally more grungy.
+\end{itemize}
+\end{frame}
+
+
+\subsection{Variadic Summary}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Variadic Summary...}
+\begin{itemize}[<+->]
+\item Variadic templates are template classes or functions that take
+  arbitrary numbers of arguments
+\item This treatment has barely scratched the surface
+\item Along with ``Universal References'', allows perfect forwarding
+  of function arguments
+\begin{itemize}
+  \item Consider how std::vector<T>::emplace\_back works...
+{\scriptsize\begin{verbatim}
+vector<int> vi   ;  vi.emplace_back(43);
+
+vector<Widget> vw; vi.emplace_back(Wocket, Sprocket, Zoink);
+\end{verbatim}
+}
+\end{itemize}
+\item What are Universal References? I'm glad you asked...
+\end{itemize}
+\end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Motivation}
+%% \end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Motivation}
+%% \end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Motivation}
+%% \end{frame}

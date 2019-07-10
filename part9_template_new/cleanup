@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+
+
+cln_ext="aux log nav out snm toc vrb"
+
+for x in $cln_ext; do 
+    drm *.$x; 
+done

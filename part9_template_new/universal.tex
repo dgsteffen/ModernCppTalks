@@ -1,0 +1,231 @@
+%% ... 
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{References}
+The definitive talk: Scott Meyers at C++ And Beyond 2012:
+
+\url{https://channel9.msdn.com/Shows/Going+Deep/Cpp-and-Beyond-2012-Scott-Meyers-Universal-References-in-Cpp11}
+
+\begin{itemize}[<+->]
+\item We'll watch a cut-down version of the talk, but you should go
+  watch the whole thing.
+\item For the record, this is roughly:
+\begin{itemize}
+\item 0 - 16:40
+\item 17:13 - 20:30
+\item 56:00 - 58:00
+\item 59:30 - 1:03:30
+\item 1:19:58 - 1:22:53
+\end{itemize}
+
+\end{itemize}
+
+
+
+
+
+
+
+%% \begin{itemize}[<+->]
+%% \item ``Universal Reference'' a term invented by Dr. Meyers, now in
+%%   standard use.
+%% \item Rvalue reference $\implies$ \texttt{type\&\&}
+%% \item Therefore,  \texttt{type\&\&} $\implies$ rvalue reference, right?
+%% \item No! \texttt{type\&\&} $\centernot\implies$ rvalue reference.
+%% \item This is tremendously confusing.
+%% \item This is also a lie.
+%% \item But it's a really really really useful lie.
+%% \item Come with me and we'll see how deep the rabbit hole goes.
+%% \end{itemize}
+
+\end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Recall Reference Binding Rules}
+%% \newcommand{\ccheck}{{\textcolor{magenta}{\checkmark}}}
+
+%% \center{
+
+%% \begin{tabular}{cr|c|c|c|c|}
+%% %\cline{3-6}
+%% \multicolumn{2}{c}{} &  \multicolumn{4}{c}{\bf{Object Type}}\\ 
+%% & \multicolumn{1}{c}{}& \multicolumn{1}{c}{ const Lvalue}
+%% & \multicolumn{1}{c}{Lvalue} & \multicolumn{1}{c}{Rvalue}
+%% & \multicolumn{1}{c}{const Rvalue} \\ \cline{3-6} 
+%% \multirow{4}{*}{\begin{sideways}\bf{Ref Type}\end{sideways}} & const \& & \ccheck & \ccheck & \ccheck & \ccheck \\ \cline{3-6}
+%%  & \& & & \ccheck & & \\ \cline{3-6}
+%%  & \&\& & &  & \ccheck & \\ \cline{3-6}
+%%  & const \&\& & & & & \ccheck \\ \cline{3-6}
+
+
+%% \end{tabular}
+
+%% \vskip 12pt
+
+%% \begin{itemize}[<+->]
+%% \item Everything  binds to \texttt{const \&}
+%% \item All the rest of the binding rules are \emph{minimal}
+%% \item \texttt{const \&\&} is effectively useless
+%% \end{itemize}
+
+%% }
+
+
+
+%% \end{frame}
+
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{The double life of type\&\&}
+%% \begin{itemize}[<+->]
+%% \vskip 12pt
+%% \item Shorthand for this talk:
+%% \begin{itemize}
+%%   \item LRref = Lvalue reference
+%%   \item RRef = Rvalue reference
+%%   \item URef = Universal reference
+%% \end{itemize}
+%% \end{itemize}
+
+
+%% {\scriptsize\begin{verbatim}
+%% void f( Widget&& param);   // rvalue reference
+
+%% Widget&& var1 = Widget();  // rvalue reference
+
+%% auto&&   var2 = Widget();  // NOT rvalue reference
+
+%% template<typename T>
+%% void f(std::vector<T>&& p); // rvalue reference
+
+%% template<typename T>
+%% void f(T&& p);              // not rvalue reference
+%% \end{verbatim}
+%% }
+%% \pause
+%% This is still a lie.
+%% \end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{The double life of type\&\&}
+%% \framesubtitle{The plot thickens...}
+%% In \texttt{type\&\&}, ``\&\&'' means either:
+%% \begin{itemize}[<+->]
+%% \item Rvalue reference
+%%   \begin{itemize}
+%%     \item Binds rvalues only
+%%     \item Facilitates moves
+%% \end{itemize}
+%% \item \Emph{Universal reference}
+%%   \begin{itemize}
+%%     \item Rvalue reference \emph{or} lvalue reference
+%%     \item \Emph{Syntactically} \texttt{type\&\&}, \Emph{semantically}
+%%       \texttt{type\&\&} or \texttt{type\&}.
+%%       \item Binds to lvalues \emph{and} rvalues, const, nonconst,
+%%         \Emph{everything}
+%%       \item May facilitate copies, may facilitate moves
+%%   \end{itemize}
+%% \end{itemize}
+%% \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Perfect Fowarding: The Problem}
+\framesubtitle{part 1}
+\begin{itemize}[<+->]
+\item ``Rvalue References Explained'' by Thomas Becker, \url{http://thbecker.net/articles/rvalue_references/section_07.html}
+\item Consider a factory function:
+{\scriptsize\begin{verbatim}
+template<typename T, typename A>
+shated_ptr<T> Factory(A arg)
+{
+  return shared_ptr<T>{new T(arg);;
+}
+\end{verbatim}
+}
+\item Great, we just forward the argument to T's ctor.
+\item But, we're always making a copy of Arg, which might be bad for
+  many reasons.
+\item OK, so take by reference:
+{\scriptsize\begin{verbatim}
+template<typename T, typename Arg> shated_ptr<T> Factory(Arg& arg) {...}
+\end{verbatim}
+}
+\item ... and now it won't work for const\& or rvalue arguments.  OK,
+  overloading is our friend:
+{\scriptsize\begin{verbatim}
+template<typename T, typename A> shared_ptr<T> Factory(      A&  arg) {...}
+template<typename T, typename A> shared_ptr<T> Factory(const A&  arg) {...}
+template<typename T, typename A> shared_ptr<T> Factory(      A&& arg) {...}
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Perfect Fowarding: The Problem}
+\framesubtitle{part 2}
+\begin{itemize}[<+->]
+\item But if we have two parameters, we have a combinatorial
+  explosion: 
+{\scriptsize\begin{verbatim}
+template<typename T, typename A, typename B> shared_ptr<T> ...
+
+... F(      A&  a, B& b ) {...}
+... F(const A&  a, B& b ) {...}
+... F(      A&& a, B& b ) {...}
+
+... F(      A&  a, const B& b ) {...}
+... F(const A&  a, const B& b ) {...}
+... F(      A&& a, const B& b ) {...}
+
+... F(      A&  a, B&& b ) {...}
+... F(const A&  a, B&& b ) {...}
+... F(      A&& a, B&& b ) {...}
+\end{verbatim}
+}
+\end{itemize}
+\pause
+\Emph{Perfect fowarding to the rescue!}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Perfect Fowarding}
+\begin{itemize}[<+->]
+\item One parameter
+{\scriptsize\begin{verbatim}
+template<typename T, typename A> shared_ptr<T> Factory(A&&  arg) {...}
+\end{verbatim}
+}
+\item Two parameters
+{\scriptsize\begin{verbatim}
+template<typename T, typename A, typename B>
+shared_ptr<T> Factory(A&& a, B&& b)          {...}
+
+\end{verbatim}
+}
+\item arbitrary parameters
+{\scriptsize\begin{verbatim}
+
+template<typename T, typename ...As>
+shared_ptr<T> Factory(As&&.... args) { ...}
+\end{verbatim}
+}
+
+\vskip 12pt
+\item So go back to our earlier examples of variatic templates, and
+  put ``\&\&'' everywhere.
+\end{itemize}
+\end{frame}
+

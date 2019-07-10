@@ -1,0 +1,154 @@
+%\documentclass[english,10pt, compress]{beamer}
+\documentclass[english,10pt, compress, handout]{beamer}
+\usepackage{mathptmx}
+\usepackage[T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\usepackage{color}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fancyvrb}
+\usepackage{multicol}
+\usepackage{rotating}
+\usepackage{tikz}
+\usepackage{centernot}
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+\newcommand{\noun}[1]{\textsc{#1}}
+%% Because html converters don't know tabularnewline
+\providecommand{\tabularnewline}{\\}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% Textclass specific LaTeX commands.
+ % this default might be overridden by plain title style
+ \newcommand\makebeamertitle{\frame{\maketitle}}%
+ \AtBeginDocument{
+   \let\origtableofcontents=\tableofcontents
+   \def\tableofcontents{\@ifnextchar[{\origtableofcontents}{\gobbletableofcontents}}
+   \def\gobbletableofcontents#1{\origtableofcontents}
+ }
+ \long\def\lyxframe#1{\@lyxframe#1\@lyxframestop}%
+ \def\@lyxframe{\@ifnextchar<{\@@lyxframe}{\@@lyxframe<*>}}%
+ \def\@@lyxframe<#1>{\@ifnextchar[{\@@@lyxframe<#1>}{\@@@lyxframe<#1>[]}}
+ \def\@@@lyxframe<#1>[{\@ifnextchar<{\@@@@@lyxframe<#1>[}{\@@@@lyxframe<#1>[<*>][}}
+ \def\@@@@@lyxframe<#1>[#2]{\@ifnextchar[{\@@@@lyxframe<#1>[#2]}{\@@@@lyxframe<#1>[#2][]}}
+ \long\def\@@@@lyxframe<#1>[#2][#3]#4\@lyxframestop#5\lyxframeend{%
+   \frame<#1>[#2][#3]{\frametitle{#4}#5}}
+ \newenvironment{topcolumns}{\begin{columns}[t]}{\end{columns}}
+ \def\lyxframeend{} % In case there is a superfluous frame end
+
+
+%\setbeamersize{text margin left=.5cm, text margin right=.5cm, text}
+% I personally don't think the navigation symbols add anything useful
+
+\hypersetup{colorlinks, urlcolor=blue, linkcolor=magenta}
+
+\usetheme{Warsaw}
+
+\DeclareRobustCommand{\CC}{\hbox{C\hspace{-0.5ex}
+                       \protect\raisebox{0.5ex}
+                       {\protect\scalebox{0.67}{++}}}}
+
+
+%\setbeamertemplate{headline}
+%{%
+%\begin{beamercolorbox}{section in head/foot}
+%%\vskip2pt\insertnavigation{\paperwidth}\vskip2pt
+%\end{beamercolorbox}%
+%}
+
+\newcommand{\Emph}[1]{\textcolor{magenta}{{#1}}}
+
+
+\usefonttheme{serif}
+%\usefonttheme{stillsanserifsmall}
+\setbeamercovered{transparent}
+
+\makeatother
+
+\usepackage{babel}
+\begin{document}
+
+
+% Turn on pause for all items?
+\beamerdefaultoverlayspecification{<+->}
+
+
+
+
+\title[\CC11]{Moving to \CC11}
+
+
+\subtitle{Part 9: \CC11 and \CC14 Metaprogramming}
+
+
+\author[]{Dave~Steffen \\
+{\tiny with a lot of help
+from the C++ Deities.}}
+
+
+%\institute{}
+
+
+%\date[]{}
+
+\makebeamertitle
+
+
+
+
+
+
+\AtBeginSubsection[]{
+
+  \frame<beamer>{
+
+    \frametitle{Outline}
+
+    \tableofcontents[currentsection,currentsubsection]
+
+  }
+
+}
+
+
+
+%\beamerdefaultoverlayspecification{<+->}
+
+
+\lyxframeend{}\lyxframe{Outline}
+
+\tableofcontents{}
+
+
+
+
+\lyxframeend{}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%    SLIDES     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\section{Introduction}
+\input{intro}
+
+\section{Library Type Traits}
+\input{traits_lib}
+
+\section{Constexpr}
+\input{constexpr}
+
+\section{Variadic Templates}
+\input{variadic}
+
+\section{Universal References}
+\input{universal}
+
+
+\section{Summary}
+\input{summary}
+
+\end{document}
