@@ -1,0 +1,231 @@
+\subsection{The sizeof operator}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Reminder: sizeof operator}
+
+\begin{itemize}[<+->]
+\item The sizeof operator works at compile-time
+\item It does not evaluate its argument, just does compile-time type
+  computation.
+\item Never returns zero (all types have at least one byte)
+\item Examples:
+{\scriptsize\begin{verbatim}
+
+sizeof(char) == 1;  // true, guaranteed
+
+class Widget { ... };
+
+size_t s = sizeof(Widget); // fine
+
+Widget WidgetFactory(int i) // generator fn
+{
+   if (i == 0) _FATAL_ERROR("AIGH");
+   ...
+}
+
+s == sizeof(WidgetFactory(0)); // true, and no crash!
+\end{verbatim}
+}
+\end{itemize}
+\pause
+Suprisingly handy in what follows...
+\end{frame}
+
+
+\subsection{Compile-time assertions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Compile-time Assertions}
+Consider the following problems:
+{\scriptsize\begin{verbatim}
+// Case 1: fiddle with bits...
+void fiddle_with_bits(unsigned arg)
+{
+  ...  // absolutely depends on arg having 32 bits
+}
+\end{verbatim}
+}
+\pause
+{\scriptsize\begin{verbatim}
+// case 2: how big is an enum?
+
+// legacy interface, only supports 0..255)
+Fish FishPond(unsigned char i) {...} 
+
+// but we want to make it more intuitive
+enum Fishes { OneFish, TwoFish, RedFish };
+
+Fish twofish = FishPond(TwoFish);
+\end{verbatim}
+}
+
+\end{frame}
+
+\begin{frame}[fragile,t]
+\frametitle{Compile-time Assertion II}
+
+
+No problems.... until either
+
+
+\begin{itemize}[<+->]
+\item We port to a platform where unsigned integers are 64 bit (or
+  something)
+\item During maintenance, someone does this:
+{\scriptsize\begin{verbatim}
+enum Fishes { OneFish, TwoFish, RedFish, BlueFish=256 };
+\end{verbatim}
+}
+
+\item We know it's \Emph{good practice} to document (by testing!)
+  preconditions.
+\item We could \texttt{\_FATAL\_ERROR} :
+{\scriptsize\begin{verbatim}
+if (sizeof(unsigned) != 32) _FATAL_ERROR(``Bad Unsigned!'');
+
+if (sizeof(OneFish) > sizeof(char)) _FATAL_ERROR(``Bad Fish!  Bad, Bad Fish!'');
+\end{verbatim}
+}
+\item If our compiler isn't kind enough to warn us, \Emph{This can
+  make it into production.}
+\item Our customers are known not to like this.
+\item We can add comments, but the compiler doesn't read comments, and
+  neither do programmers...
+\item The issue is known at compile time... can we detect it at
+  compile time?
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static\_assert}
+\framesubtitle{1 / 3}
+Templates to the rescue!
+{\scriptsize\begin{verbatim}
+template<bool> struct CTAssert;    // declare template, don't define it
+
+template<> struct CTAssert<true> {}; // define specialize for 'true'
+\end{verbatim}
+}
+
+\pause
+Consider:
+{\scriptsize\begin{verbatim}
+ CTAssert < sizeof(unsigned) == 32 > (); // declare unnamed variable..
+\end{verbatim}
+}
+\pause
+{\scriptsize\begin{verbatim}
+ CTAssert <                32 = 32 > (); // assume normal platform
+\end{verbatim}
+}
+\pause
+{\scriptsize\begin{verbatim}
+ CTAssert < true > ();         // OK; it's an empty struct, the
+                              // compiler just ignores it
+\end{verbatim}
+}
+
+No problems.
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static\_assert}
+\framesubtitle{2 / 3}
+
+On the other hand....
+{\scriptsize\begin{verbatim}
+ CTAssert < sizeof(OneFish == sizeof(char)  > (); 
+\end{verbatim}
+}
+\pause
+{\scriptsize\begin{verbatim}
+ CTAssert < 2 == 1 > (); // assume the compiler makes Fishs a
+                         // two-byte int
+\end{verbatim}
+}
+\pause
+{\scriptsize\begin{verbatim}
+CTAssert < false > ();        // No definition provided!
+\end{verbatim}
+}
+\pause
+Produces this error:
+{\scriptsize\begin{verbatim}
+template1.cpp:22:42: error: invalid use of incomplete type 'struct CTAssert<false>'
+    CTAssert<sizeof(OneFish) == sizeof(char)>();
+                                          ^
+template1.cpp:13:23: note: declaration of 'struct CTAssert<false>'
+ template<bool> struct CTAssert;    // declare template, don't define it
+                       ^
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static\_assert}
+\framesubtitle{3 / 3}
+
+\begin{itemize}[<+->]
+\item Note the reasonably nice error message.  (Older compilers aren't
+  so polite, but they get the message across)
+\item This works because of what's \emph{not} there.  This is an
+  important and very useful technique; provide specializations only
+  for cases that you want to work.
+\item Note that there is \Emph{exactly zero run-time code} generated.
+\item In real life, you'd package this up:
+{\scriptsize\begin{verbatim}
+#define static_assert(expr, err_msg) (CTAssert<(expr)> err_msg;
+\end{verbatim}
+}
+
+\item OK, the error message has to be a valid C++ identifier, but it's
+  not bad:
+
+{\scriptsize\begin{verbatim}
+static_assert(sizeof(OneFish) == sizeof(char), bad_fish_no_sushi);
+
+error: aggregate 'CTAssert<false> bad_fish_no_sushi' 
+                 has incomplete type and cannot be defined
+    static_assert(sizeof(one) == sizeof(char), bad_fish_no_sushi);
+
+\end{verbatim}
+}
+
+(at least the error message appears in the compiler output somewhere)
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{static\_assert}
+\framesubtitle{4 / 3}
+\begin{itemize}[<+->]
+\item In \CC11, this is part of the standard.
+\vskip 12pt
+\item \texttt{static\_assert} is a keyword.
+\vskip 12pt
+\item The message is a string literal:
+\vskip 12pt
+{\scriptsize
+\begin{verbatim}
+static_assert( sizeof(OneFish) == sizeof(char), "Bad Fish!");
+\end{verbatim}
+}
+which can't be done (easily) without language support.
+\end{itemize}
+\end{frame}
+
+

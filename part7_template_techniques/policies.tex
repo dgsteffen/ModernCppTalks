@@ -1,0 +1,436 @@
+\subsection{Policies}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Composing Types}
+\framesubtitle{see Alexandrescu!}
+How to we compose a type out of available parts?
+\pause
+\begin{itemize}[<+->]
+\item Good old OO
+{\scriptsize
+\begin{verbatim}
+class Employee                             {...};
+
+class Secretary          : public Employee {...};
+class TempWorker         : public Employee {...};
+
+class TemporarySecretary : public Secretary, 
+                           public TempWorker {...};
+\end{verbatim}
+}
+\item OK, Multiple Inheritance has its quirks, but then so does
+  everything else.  This is just fine ($\pm$ some virtual inheritance)
+\item You don't have to look far to find places where straight-forward
+  inheritance causes problems.
+\begin{itemize}
+\item Can't enforce architectural designs (E.G. Singletons)
+\item Combinatorial explosion of types must be manually
+  created. (\texttt{HourlyTemporarySecretary, SalariedTemporaryCoder...}) 
+\item Bad combinations not forbidden (Maybe all Temps are hourly,
+  but how do you keep someone from making a SalariedTemp?)
+\end{itemize}
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Composing Types}
+\framesubtitle{Problems with inheritance}
+\begin{itemize}[<+->]
+\item Reasons to Inherit:
+  \begin{itemize}
+  \item Code Reuse
+  \item Customization of existing components
+  \item Run-time polymorphism (virtual functions)
+\end{itemize}
+
+\item Virtual functions are awesome: run-time polymorphism is what OO
+  is all about, right?
+  \begin{itemize}  
+    \item Well worth the cost if you need it.
+    \item But when you don't need it, you still pay space and time
+      costs.
+  \end{itemize}
+\item The Liskov Substitution Principle is a two-edged sword.
+  
+  \begin{itemize}
+  \item Run-time polymorphism is dangerous without it.  (Compare
+      Python's Duck-Type system, where substitution failures can't be
+      diagnosed until \emph{run time}! )
+    \item But, not all relationships are hierarchical.  Does square
+      inherit from rectangle or the other way around?
+    \item Scott Meyers' infamous \Emph{All
+      birds can fly, penguins are birds, penguins can't fly, uh-oh} problem.
+\end{itemize}
+
+\item Liskov is \emph{strong behavioral subtyping} which isn't always
+  what we want
+\item And it always comes with virtual functions and run-time polymorphism
+
+\end{itemize}
+
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{CommonComponent: WorkflowEngine}
+\framesubtitle{Written two weeks ago!}
+\begin{center}That's all very abstract... here's a real example: the
+  SmartBarcoding WorkflowEngine.\end{center}
+\begin{itemize}[<+->]
+\item It's a common component, being built by ``The Reusables''
+\item Takes an interpreted barcode, updates the Workflow, and sends an
+  event to the GUI (or wherever)...
+{\scriptsize
+\begin{verbatim}
+struct BarcodeEvent { 
+  string scan; 
+  string pattern; 
+  BarcodeCategory category;
+};
+
+class WorkflowEngine
+{
+public:
+   WorkflowEngine& Instance() ; // its a singleton
+   BarcodeEvent processBarcodeScan (const string& scan);
+
+private:
+   WorkflowEngine(); // private ctor to enforce singleton
+};
+\end{verbatim}
+}
+\item WorkflowEngine configured via messages from ``The App''
+  (Vista, Tomes, ...)
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{CommonComponent: WorkflowEngine}
+\framesubtitle{part 2}
+\begin{itemize}[<+->]
+\item Problem: This is an asynchronous process, how do we communicate
+  results (send events) to the rest of the system?
+\begin{itemize}
+  \item Trima: Messages?  Maybe
+  \item Trima: Callbacks?  Maybe
+  \item Vista: ... there's some triple-buffer thing I've heard of...
+  \item Novaris:  ???
+\end{itemize}
+\item Every product uses a different scheme for inter-process communication.
+\item As a CommonComponent designer, I have no way of knowing
+  \emph{even in principle} how to send barcode events to other tasks/threads
+\item Arguably, it's not my job anyway; the Trima/Optia/Novartis guys
+  should do that.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{CommonComponent: WorkflowEngine}
+\framesubtitle{The obvious solution}
+
+\begin{itemize}[<+->]
+\item Obvious solution: make it a base class...
+{\scriptsize
+\begin{verbatim}
+class WorkflowEngineBase
+{
+public:
+
+   void processBarcode (const Barcode& barcode);
+
+protected:
+
+  virtual void fireBarcodeEvent(BarcodeEvent& bc) = 0;
+};
+
+void WorkflowEngineBase::processBarcode (const Barcode& barcode)
+{
+  BarcodeEvent event;
+
+  ... process, process, process
+
+  fireBarcodeEvent(event);
+}
+\end{verbatim}
+}
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Trima WorkflowEngine, with messages}
+...And let the device teams inherit and customize as necessary:
+{\scriptsize
+\begin{verbatim}
+// Trima Message-based handler
+
+class TrimaWorkflowEngine : public WorkflowEngineBase
+{
+public:
+
+ TrimaWorkflowEngine& Instance() ;    // still a singleton
+
+protected:
+
+  TrimaWorkflowEngine() : msg (MessageBase::SEND_LOCAL) {}
+
+    void fireBarcodeEvent(BarcodeEvent& bc) {
+       msg.send(bc);
+    }
+
+private:
+
+    Message<BarcodeEvent> msg;
+};
+
+
+\end{verbatim}
+}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Trima WorkflowEngine, callbacks...}
+Or, use callbacks
+{\scriptsize
+\begin{verbatim}
+// Trima Message-based handler
+
+class TrimaWorkflowEngine : public WorkflowEngineBase
+{
+public:
+
+  TrimaWorkflowEngine& Instance() ;    // still a singleton
+
+
+  void setEventCallback (const CallbackBase& c) { _eventCallback = c ; }  
+
+protected:
+
+    void fireBarcodeEvent(BarcodeEvent& bc) {
+       _eventCallback(bc);
+    }
+
+private:
+
+    CallbackBase _eventCallback ;
+
+};
+
+
+\end{verbatim}
+}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Problems...}
+\begin{itemize}[<+->]
+\item Note: ``Singleton'' can't be enforced (making the base class a
+  singleton doesn't help!)
+  \begin{itemize}
+    \item And, each team has to implement Instance themselves, which
+      is silly, they're all exactly the same
+  \end{itemize}
+\item We get polymorphism, but don't want it:
+  \begin{itemize}
+    \item They're singletons, we never have more than one, and we know
+      at compile time which one it is.
+    \item But consider a public virtual (say, \texttt{virtual void
+      incomingBarcode(Barcode\&)}):
+{\scriptsize\begin{verbatim}
+TrimaWorkflowEngine& twe = 
+       TrimaWorkflowEngine::Instace(); // ref to instance
+
+twe.incomingBarcode(...);   // device-specific input
+\end{verbatim}
+}
+
+  \end{itemize}
+
+
+\item This invokes virtual function behavior (vtable lookup,
+  call-through- function-pointer) although \Emph{we know what function
+    to call at compile-time}!
+\item Are users going to be tempted to acess this thing through
+  pointers-to-base-class?
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Problems...}
+\begin{itemize}[<+->]
+\item \Emph{We don't want run-time polymorphism.}
+\item \Emph{We don't want IS-A.}
+\item We just want a TrimaWorkflowEngine with some (easily!)
+  customized (at compile time!) behavior.
+\end{itemize}
+
+\pause
+\begin{center}
+\Emph{Enter Policies!}
+\end{center}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Policy-Based Design}
+\framesubtitle{Alexandrescu, 2001}
+\begin{itemize}[<+->]
+  \item \Emph{Compile-time polymorphism}.
+  \item Policies are classes that specialize behavior
+  \item The ``Host'' class uses policies specified at compile-time.
+{\scriptsize\begin{verbatim}
+class Policy1 {...};
+class Policy2 {...};
+
+template<class P> class Host : public P {...};
+
+typedef Host<Policy1> Host1;
+typedef Host<Policy2> Host2;
+
+\end{verbatim}
+}
+\item We now have two customized Host classes;
+\item Nobody is tempted to use them polymorphically, no virtual
+  functions (as we will see)
+\item Architectural constraints reside in the Host
+\item Sometimes called ``Upside-down inheritance'' since we derive
+  \emph{from} the customization, instead of the other way around.
+
+\end{itemize}
+
+\pause
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Revised WorkflowEngine}
+{\scriptsize
+\begin{verbatim}
+template<typename EventPolicy>
+class WorkflowEngineHost : public EventPolicy   {
+public:
+  WorkflowEngineHost& Instance() ;    // <-- its a singleton... enforced!
+
+  void processBarcode (const Barcode& barcode)   {
+    BarcodeEvent event;
+    ...
+    this->fireBarcodeEvent(event);    // presumably inherited from EventPolicy
+                                      // (and remember the this-> !)
+  }
+};
+\end{verbatim}
+}
+\pause
+\Emph{And now the customized bit:}
+{\scriptsize\begin{verbatim}
+class MessageEventPolicy {   // note: no inheritance
+public:
+  MessageEventPolicy () : msg (MessageBase::SEND_LOCAL) {}
+
+  void fireBarcodeEvent(BarcodeEvent& bc) {msg.send(bc);}  // note: not virtual!
+
+private:
+    Message<BarcodeEvent> msg;
+};
+
+typedef WorkflowEngineHost<MessageEventPolicy> TrimaWorkflowEngine;
+\end{verbatim}
+}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Revised WorkflowEngine, pt 2}
+\begin{itemize}[<+->]
+\item Note: no virtual functions to be seen.
+\item In fact, \texttt{fireBarcodeEvent} will be inlined.
+  \begin{itemize}
+    \item We've gone from a vthunk + indirect function call to
+      \emph{no function call at all}.
+  \end{itemize}
+\item Note that we use Duck-Typing here; all the policy needs to do is
+  provide a \texttt{fireBarcodeEvent} method with the right signature.
+\end{itemize}
+\pause
+{\scriptsize
+\begin{verbatim}
+class CallbackPolicy     // Nothing to do with the MessageEventPolicy
+{
+public:
+  CallbackPolicy();
+
+  void setEventCallback (const CallbackBase& c) { _eventCallback = c ; }  
+
+  void fireBarcodEvent(BarcodeEvent& bc) {
+    _eventCallback(bc); 
+  }
+
+private:
+    CallbackBase _eventCallback ;
+};
+\end{verbatim}
+}
+
+\begin{itemize}[<+->]
+\item Note that the policies give the host \emph{different interfaces}.
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Other options...}
+\begin{itemize}[<+->]
+\item Hosts can also use the policy as a datamember:
+{\scriptsize\begin{verbatim}
+template<typename Policy>
+class Host {
+  ...
+private:
+
+  Policy p;
+};
+\end{verbatim}
+}
+\item In this case, the policy can't enhance the Host's
+  interface... but it's also a lot simpler.
+\item Particularly useful if the policy just acts like a function.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{So what do we have?}
+\begin{itemize}[<+->]
+
+\item We compose at compile-time, not run-time.
+\item Significant run-time savings.
+\item Errors are caught at compile-time
+\item Design constraints enforced by the host class. (The ``base
+  class'' can be a Singleton now.)
+\item Composed class' interface enhanced as necessary by the policy.
+\item We still have an IS-A relationship... but who is going to try to
+  use a TrimaWorkflowEngine AS-A CallbackPolicy?
+  \begin{itemize}
+    \item Note: we can prevent users from trying to do so by declaring
+      the policy's ctor and dtor \texttt{protected}.  Nobody but the
+      Host can make one.
+  \end{itemize}
+
+\end{itemize}
+\end{frame}

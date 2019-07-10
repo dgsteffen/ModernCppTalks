@@ -1,0 +1,106 @@
+\subsection{SFINAE}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Substitution Failure Is Not An Error}
+\framesubtitle{The second-worst acronym in \CC }
+\begin{itemize}[<+->]
+\item SFINAE: Invalid subsitution of template parameters is not in itself an error.
+{\scriptsize\begin{verbatim}
+struct Test { typedef int foo; }
+
+template<typename T> void f(typename T::foo) {} #1
+
+template<typename T> void f(T) {}               #2
+
+int main() {
+
+  f<Test>(10);  // calls #1
+  f<int >(10);  // calls #2 without error
+}
+\end{verbatim}
+}
+\item Substituting int into \#1 is a substitution failure (\texttt{int}s don't
+  have a typedef named \texttt{foo}) ...
+\item ... but that's not an error and the compiler keeps going.
+\item Since \#2 works for \texttt{int}, all is well.
+\end{itemize}
+\pause
+The point is that the compiler accepts substitution failure without
+errors... until it doesn't have a choice.
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{SFINAE}
+\framesubtitle{... continued}
+\begin{itemize}[<+->]
+\item If we take out \#2, we get helpful error messages: (GCC 5.4)
+{\scriptsize\begin{verbatim}
+
+sfinae.cpp: In function 'int main()':
+sfinae.cpp:10:13: error: no matching function for call to 'f(int)'
+   f<int >(10);  // calls #2 without error
+             ^
+sfinae.cpp:3:27: note: candidate: template<class T> void f(typename T::foo)
+ template<typename T> void f(typename T::foo) {}
+                           ^
+sfinae.cpp:3:27: note:   template argument deduction/substitution failed:
+sfinae.cpp: In substitution of 'template<class T> void f(typename T::foo) 
+                               [with T = int]':
+sfinae.cpp:10:13:   required from here
+sfinae.cpp:3:27: error: 'int' is not a class, struct, or union type
+\end{verbatim}
+}
+\vskip 12pt
+
+\item Here, the compiler has no choice but to instantiate \#1 for
+  \texttt{int}, and therefore gets unhappy.
+
+\item This is an extremely useful rule in metaprogramming.
+\end{itemize}
+\pause
+\begin{center}
+Good paper on SFINAE: {\scriptsize
+\url{https://accu.org/content/conf2013/Jonathan_Wakely_sfinae.pdf}
+}
+\end{center}
+\end{frame}
+
+
+
+
+\subsection{Compile-time conditionals}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{SFINAE Example}
+\begin{itemize}[<+->]
+\item Compile-time conditional: even or odd
+{\scriptsize\begin{verbatim}
+
+// This is taken when I is even
+template<int I> int div(char(*)[I % 2 == 0] = 0) {
+   return 42;
+}
+
+// this is taken when I is odd 
+template<int I> int div(char(*)[I % 2 == 1] = 0) {
+   return 13;
+}
+
+
+int main() {return div<3>();}
+
+\end{verbatim}
+}
+
+\item Arcane fact \#1: The syntax \texttt{char(*)[N]} means ``Pointer to an
+  array with element type char and size N.''
+\item ... and zero-sized arrays are not allowed.
+\item So if N is false (0 here), then we get the invalid type
+  \texttt{char(*)[0]}, pointer to a zero sized array, and SFINAE just
+  deletes it.
+\vskip 12pt
+\item \Emph{Compile-time conditional}
+\end{itemize}
+\end{frame}

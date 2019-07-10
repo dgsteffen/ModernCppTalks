@@ -1,0 +1,166 @@
+\subsection{The First Metaprogram}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{The ``Unruh Primes'' program}
+\begin{itemize}[<+->]
+\item At a C++ standardization meeting in 1994, Erwin Unruh wrote the
+  first template metaprogram.
+\item It didn't compile...
+\item but trying to compile it produced \Emph{lists of prime numbers}
+  in the error messages.
+\item It was discovered that templates are Turing-complete.
+  \begin{itemize}
+  \item Compilers can be fed code that forces them, \emph{at compile
+    time}, to perform arbitrary computations.
+  \item In real life, there are hard limits on what you can really
+    do (compilers aren't really build for this).
+    \end{itemize}
+\item Alas, Unruh's progream doesn't really work on modern compilers, becuase their error messages
+  have been improved
+\end{itemize}
+
+\end{frame}
+
+
+\subsection{Compile-time factorial}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Simple example: compile-time factorial}
+\begin{itemize}[<+->]
+\item Everyone's favorite example of recursion...
+\item Start with the general case:
+{\scriptsize\begin{verbatim}
+template<int N> struct Factorial
+{
+   enum { result = N * Factorial<N-1>::result };
+};
+
+\end{verbatim}
+}
+\item Remember the base case (so we don't recurse forever)
+{\scriptsize\begin{verbatim}
+template<> struct Factorial<0> { enum {result = 1}; };
+
+\end{verbatim}
+}
+\item Then use it...
+{\scriptsize\begin{verbatim}
+int main() {  return Factorial<5>::result;  }
+
+\end{verbatim}
+}
+
+\item The code produced is effectively as if we had written:
+{\scriptsize\begin{verbatim}
+int main() { return 120; }
+
+\end{verbatim}
+}
+
+\item Exactly zero run-time instructions are produced.
+
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Why Enums?}
+\begin{itemize}[<+->]
+  \item In old compilers, enums were the only way to have compile-time
+    integer constants.
+  \item Now we also have static consts and in-class inializers.  We
+    could have just as easily written:
+{\scriptsize\begin{verbatim}
+template<int N> struct Factorial
+{
+   static int const result = N * Factorial<N-1>::result;
+};
+
+template<> struct Factorial<0> { static const int result = 1; };
+
+\end{verbatim}
+}
+\item Enums are still preferred.
+\begin{itemize}
+  \item Static constant members are still l-values...
+  \item Pass one to \texttt{void foo(const int\&)} forces the compiler
+    to instantiate it and stick it somewhere
+  \item On the other hand, enums are technically constant r-values (or
+    some such) and act like integer literals
+\end{itemize}
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Compile-time loops}
+
+\begin{frame}[fragile,t]
+\frametitle{Compile-time loops}
+\begin{itemize}[<+->]
+\item As a second example, let's loop from 10 down to 1 at compile
+  time:
+{\scriptsize\begin{verbatim}
+template<int N> struct Looper
+{
+   static void exec() {
+     cout << "At " << N << endl;
+     Looper<N-1>::exec();
+   }
+};
+
+template<> struct Looper<0>
+{
+   static void exec() {}
+};
+
+int main()
+{
+   Looper<10>::exec();
+}
+
+\end{verbatim}
+}
+
+\item Note the same recursive template technique
+
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{frame}[fragile,t]
+\frametitle{Compile-time loops}
+\begin{itemize}[<+->]
+\item Swap the order of the statements to count up from 1 to 10:
+{\scriptsize\begin{verbatim}
+template<int N> struct Looper
+{
+   static void exec() {
+     Looper<N-1>::exec();
+     cout << "At " << N << endl;
+   }
+};
+\end{verbatim}
+}
+
+\item Metaprogramming is much closer to \Emph{functional} programming
+  \begin{itemize}[<+->]
+  \item All values are immutable
+  \item Recursion rather than iteration
+  \item Apparently learning Haskell makes this much easier...
+  \end{itemize}
+\vskip 12pt
+\item Keep in mind that there are real limits to how much template
+  recursion a compiler is willing to put up with
+\item GCC provides a command-line flag \texttt{-ftemplate-depth=n} to
+  set the max recusion depth; defaults to 900
+\item Compile times and memory use can get really big.
+\end{itemize}
+
+\end{frame}

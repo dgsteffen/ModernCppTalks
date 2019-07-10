@@ -1,0 +1,204 @@
+\newcommand{\ccheck}{{\textcolor{magenta}{\checkmark}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time Control Structures}
+\begin{itemize}[<+->]
+
+\item Statements? \ccheck
+\item Loops? \ccheck
+\item Conditionals? \ccheck
+\item Algorithms?  Sure...
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: Square Root of Ints}
+\framesubtitle{Vandevoorde \& Jossutis}
+\begin{itemize}[<+->]
+\item Compute at compile time the square root of an int (rounded down):
+{\scriptsize\begin{verbatim}
+template<int N, int LO=1, int HI=N>  // default template args!
+struct Sqrt {
+
+  enum { mid = (LO+HI+1/2) };  // compute mid-point, round up
+
+  // Search for a not-too-large value in a halved interval
+  enum { value = ( N < mid*mid ) ? Sqrt<N,LO,mid-1>::value
+                                  : Sqrt<N,mid,HI>::value  };
+};
+
+// specialize for the zero-length interval
+template<int N, int M>  struct Sqrt { enum { value = M };};
+
+int main()
+{
+   cout << "9 : " << Sqrt<9>::value << endl;
+   cout << "8 : " << Sqrt<8>::value << endl;
+}
+\end{verbatim}
+}
+\item Produces
+{\scriptsize\begin{verbatim}
+9 : 3
+8 : 2
+\end{verbatim}
+} 
+\item \Emph {Compile-time binary search!}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time Control Structures}
+\begin{itemize}[<+->]
+
+\item Statements? \ccheck
+\item Loops? \ccheck
+\item Conditionals? \ccheck
+\item Algorithms?  \ccheck
+\item Data structures?  Sure...
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time associative containers}
+\begin{itemize}[<+->]
+\item We've already got compile-time hashmaps!
+\item Recall that traits are maps:
+\[
+\left.
+ \begin{matrix}
+        \mathrm{type} \\
+        \mathrm{value} \\
+        \mathrm{behavior?}
+\end{matrix}
+\right\}
+ \xrightarrow{\quad\mathrm{traits}\quad}%\stackrel{\mathrm{trait}}{\longmapsto}
+    \left\{
+      \begin{matrix}
+        \mathrm{type} \\
+        \mathrm{value} \\
+        \mathrm{behavior}
+        \end{matrix}
+      \right.
+\]
+\vskip 12pt
+\item Map behaviors to things?  You \emph{can} template on function pointers...
+
+\vskip 12pt
+\item Hash-map because it's $O(1)$ in compiler template instantiation.
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time lists}
+\begin{itemize}[<+->]
+\item OK, what about lists?  Sure... (just a sketch)
+{\scriptsize\begin{verbatim}
+struct NullType {};  // ``End'' marker
+
+template<typename H, typename T> struct TypeList 
+{
+  typedef H Head;
+  typedef T Tail;
+
+  H headval;
+};
+\end{verbatim}
+}
+\item And now the clever part....
+\item {\scriptsize \texttt{ typedef TypeList<NullType, NullType> EmptyList; } }  Empty
+\item {\scriptsize \texttt{ typedef TypeList<int, NullType>      one;} } Contains an int
+\item {\scriptsize \texttt{ typedef TypeList<double, one> two; } } (double, int)
+\item {\scriptsize \texttt{ typedef TypeList<double, Typelist<int, NullType> two; } } (same)
+
+\vskip 12pt
+
+\item We're building up a linked-list of types.
+
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time list access}
+\begin{itemize}[<+->]
+\item First, size?
+{\scriptsize\begin{verbatim}
+struct NullType { enum { size = 0}; };  // ``End'' marker
+
+template<typename H, typename T> struct TypeList 
+{
+  typedef H Head;
+  typedef T Tail;
+
+  enum {size = 1 + T::size};
+};
+
+typedef TypeList<int, TypeList<double, Typelist<string, NullType>>> three;
+
+assert( three::size == 3 );
+
+\end{verbatim}
+}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time list access}
+\begin{itemize}[<+->]
+\item Element access, looping over the list... are all doable, but he
+  details get .... detailed.  
+\item However, with some work, we can flatten this:
+{\scriptsize\begin{verbatim}
+Tuple<int> t1;
+
+Tuple<bool, int> t2;
+
+Tuple<bool, int, string> t3;
+
+val<1>(t3) = true;
+val<2>(t3) = 42;
+\end{verbatim}
+}
+
+\item Can be visited by looping techniques seen earlier
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Compile-time Control Structures}
+\begin{itemize}[<+->]
+
+\item Statements? \ccheck
+\item Loops? \ccheck
+\item Conditionals? \ccheck
+\item Algorithms?  \ccheck
+\item Data Structures? \ccheck
+\end{itemize}
+\vskip 12pt
+\pause
+\begin{center}
+Templates make compilers Turing Complete!
+\end{center}
+\pause
+\vskip 12pt
+
+\begin{center}
+\Emph{Anything you can do, I can do Meta}
+
+-- Douglas Hofstadter
+\end{center}
+\end{frame}

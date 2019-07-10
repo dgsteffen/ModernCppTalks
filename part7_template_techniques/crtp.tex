@@ -1,0 +1,195 @@
+\subsection{Composing Types with Classic OO}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Dynamic Polymorphism}
+\framesubtitle{our old friend}
+How to we provide a type that can be customized?
+\pause
+\begin{itemize}[<+->]
+\item Good old OO
+{\scriptsize
+\begin{verbatim}
+class Base { void foo();  virtual int bar();  ... };
+
+class Derived1  : public Base 
+{ 
+virtual int bar() { ... specialized code in here ... }
+};
+
+class Derived2  : public Base 
+{ 
+virtual int bar() { ... ditto ... }
+};
+
+\end{verbatim}
+}
+\item Gives us all the great OO things we know and love: run-time
+  polymorphism, code reuse, ...
+\item But what if we don't want all that?  What if we \emph{just} want
+  code reuse?
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Dynamic Polymorphism, not needed}
+\begin{itemize}[<+->]
+\item What if we never use run-time polymorphism?  
+  \begin{itemize}
+  \item We never dynamically allocate a Dervied class
+  \item We never pass it by ref or pointer to an API that takes Base objects
+  \item In other words, all we do is:
+{\scriptsize\begin{verbatim}
+Derived1 d1;
+... use d1 ...
+
+// elsewhere
+Derived2 d2;
+... use d2;
+\end{verbatim}
+}
+\end{itemize}
+\item We're not using polymorphism or late binding, we know at compile
+  time what the types are and which functions to call... can we
+  eliminate the costs of virtual functions?
+
+\end{itemize}
+
+\end{frame}
+
+
+\subsection{CRTP: Static Polymorphism}
+
+
+\begin{frame}[fragile,t]
+\frametitle{CTRP}
+\begin{center}\Emph{The Curiously Recurring Template Pattern} \end{center}
+\begin{center}or maybe  \end{center}
+\begin{center}\Emph{The Curiously Recursive Template Pattern} \end{center}
+\begin{center}it's both...  \end{center}
+
+{\scriptsize\begin{verbatim}
+template<typename T> struct Base {...};
+
+struct Derived: public Base<Derived> {...};
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item Yes, it's allowed!
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{CRTP gives us ``Static'' polymorphism}
+{\scriptsize\begin{verbatim}
+template <class T> struct Base
+{
+    void implementation()
+    {
+        static_cast<T*>(this)->implementation();
+        static_cast<T*>(this)->pure_virtual_analog();
+    }
+
+    static void static_func()
+    {
+        T::static_sub_func();
+    }
+};
+
+struct Derived : public Base<Derived>
+{
+    void implementation() { ... specialized code here ... }
+    void pure_virtual_analog() { ... }
+    static void static_sub_func();
+};
+\end{verbatim}
+}
+\pause
+\begin{itemize}[<+->]
+\item \texttt{implementation} is effectively a (non-pure) virtual function
+\item \texttt{pure\_virtual\_analog} is just that... must be provided
+  by the Derived class, or it won't compile.
+\item \texttt{static\_func} is... a ``virtual'' static function! 
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: counting objects}
+We want a generic way to count the number of objects of a given type
+exist at runtime:
+{\scriptsize\begin{verbatim}
+template<typename CountedType> class ObjectCounter {
+public:
+  static size_t current_count() { return count; }
+private:
+  static size_t count;
+protected:
+  ObjectCounter() { ++count; }
+  ObjectCounter(const ObjectCounter&) { ++count; }
+  ~ObjectCounter() { --count; }
+};
+
+class Widget : public ObjectCounter<Widget> { ... }
+
+Widget w;
+
+cout << Widget::current_count() << endl; // should be 1
+
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item Note: every type that uses \texttt{ObjectCounter} gets its own
+  static counter.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Architectural Inheritance}
+\framesubtitle{From Armen Tsirunyan on Stack Overflow}
+{\scriptsize\begin{verbatim}
+template <class ActualClass> 
+struct Singleton
+{
+   static ActualClass& Instance()  {
+      if(p == nullptr)
+         p = new ActualClass;
+      return *p; 
+   }
+
+   protected:
+     static Actualclass* p;
+   private:
+     Singleton(){}
+     Singleton(Singleton const &);
+     Singleton& operator = (Singleton const &); 
+};
+template <class T> T* Singleton<T>::p = nullptr;
+
+...
+
+MyClass : public Singleton<MyClass> {};
+...
+MyClass& MyClass::Instance();
+\end{verbatim}
+}
+\begin{itemize}[<+->]
+\item Not Bad... MyClass reuses the logic, but no overhead.
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{CRTP Summary}
+\begin{itemize}[<+->]
+\item CRTP models ``normal'' inheritance, but everything is done at compile-time
+\item We loose the run-time flexibility...
+\item ... and the run-time overhead that comes along with it.
+\item We are still bound by the usual limitations of inheritance...
+\item ... so to a more powerful technique: policies.
+\end{itemize}
+\end{frame}

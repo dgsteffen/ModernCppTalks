@@ -1,0 +1,53 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Techniques, Techniques Everywhere}
+\framesubtitle{We have just scratched the surface}
+\begin{itemize}[<+->]
+\item Compile-time unit checking (Barton and Nackman)
+\begin{itemize}
+  \item {\scriptsize \texttt{template<int M, int L, int T> struct physical\_unit}}
+  \item Template parameters are powers of mass, length, and time...
+{\scriptsize\begin{verbatim}
+typedef physical_unit<1,0,0> kg;
+typedef physical_unit<0,1,-1> velocity;
+typedef physical_unit<1,1,-2> force;
+\end{verbatim}
+}
+\item Techniques can be extended to check unit compatibility
+  (meters/feet) \emph{with no runtime overhead}
+\item We'd have an extra mars probe if they had used this.
+\end{itemize}
+\item Generic Callbacks
+  \begin{itemize}
+    \item The callback class in Common\_6.9 supports only member
+      functions with the following signatures:
+{\scriptsize\begin{verbatim}
+void my_callback();
+void my_callback(void*);
+\end{verbatim}
+}
+\item No free functions, nothing that takes more than one parameter
+\item And you have to manually cast the argument from \texttt{void*}
+  although you know perfectly well what the type is at compile time
+\item Generalized Functors templated on return-type and parameters can
+  store function pointers, member-function pointers, Functor classes...
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{More Techniques, Techniques Everywhere}
+\begin{itemize}[<+->]
+\item Map integer constants to types
+\item Detect convertability and inheritance at compile time
+\item ... the list goes on...
+\end{itemize}
+\vskip 12pt
+\pause
+\begin{center}
+\Emph{... and merges seamlessly with metaprogramming, which we will hit next time.}
+\end{center}
+
+\end{frame}

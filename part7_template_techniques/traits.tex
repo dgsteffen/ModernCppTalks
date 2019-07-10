@@ -1,0 +1,267 @@
+
+\subsection{Traits}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Type Traits}
+
+\begin{itemize}[<+->]
+\item Traits classes map types to compile-time things:
+\[
+  \mathrm{type} \xrightarrow{\quad\mathrm{traits}\quad}%\stackrel{\mathrm{trait}}{\longmapsto}
+    \left\{
+      \begin{matrix}
+        \mathrm{type} \\
+        \mathrm{value} \\
+        \mathrm{behavior}
+        \end{matrix}
+      \right.
+\]
+\vskip 12pt
+\item Allows compile-time decisions to be made based on specific
+  types, or on generic types within other templates.
+
+\vskip 12pt
+\item The proverbial ``extra level of indirection'', available at
+  compile time.
+
+\end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: Summing a Sequence}
+\framesubtitle{Type-to-type mapping}
+
+\begin{itemize}[<+->]
+\item A simple example: summing a series of values:
+{\scriptsize\begin{verbatim}
+template<typename T> inline
+T accum(const T* begin, const T* end) {
+  T total = 0;
+  while (begin != end) total += *begin++;
+  return total;
+}
+
+int num[] = { 1, 2, 3, 4, 5 };
+
+const char* txt = "Breakfast Meetings Rock";
+
+cout << accum(num, num+5) << endl;   // produces 15
+
+cout << (int)accum(txt, txt+strlen(txt)) // produces -98
+     << endl;
+\end{verbatim}
+}
+\vskip 12pt
+\item \Emph{Clearly, the \texttt{char} version overflowed.}
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: Summing a Sequence}
+\framesubtitle{continued}
+\begin{itemize}[<+->]
+\item We need to specify the types of the sum and the summands
+  independently.  OK, that's easy...
+{\scriptsize\begin{verbatim}
+template<typename S, typename V> inline
+S accum(const V* begin, const V* end) { ... }
+
+unsigned sum;  // unsigned to make things interesting
+
+sum = accum<int> (num, num+5); // we now have to specify
+                               // the return type,
+
+sum = accum<int> (txt,         // which is annoying...
+                  txt+23);     // but correct (sum == 2206)
+
+sum = accum<char>(txt,         // or deadly
+                  txt+23);     // (sum == 4294967198)
+\end{verbatim}
+}
+\vskip 12pt
+\item Can't we choose the return type automatically?
+\end{itemize}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: Summing a Sequence}
+\framesubtitle{still continued}
+\begin{itemize}[<+->]
+\item Traits to the rescue!
+{\scriptsize\begin{verbatim}
+
+template<typename T> struct SumTraits { typedef T type};  // default
+
+template<> struct SumTraits<char> { typedef int type; }:  // specialize
+
+template<T> inline
+typename SumTraits<T>::type accum(const T* begin, const T* end) 
+{
+  typename SymTraits<T>::type total = 0;
+  while (begin != end) total += *begin++;
+  return total;
+}
+
+cout << accum(num, num+5) << endl;   // produces 15
+
+cout << accum(txt, txt+23)) << endl; // produces 2206
+\end{verbatim}
+}
+
+\vskip 12pt
+\item We now 'hard code' the correct return type; the user can't mess
+  it up.
+\vskip 12pt
+\item (Yeah, the syntax gets a little ugly...)
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Example: Summing a Sequence}
+\framesubtitle{still still continued}
+\begin{itemize}[<+->]
+\item Overflow can happen to any type, so maybe...
+{\scriptsize\begin{verbatim}
+template<> struct SumTraits< char  > { typedef short     type; };
+template<> struct SumTraits< short > { typedef int       type; };
+template<> struct SumTraits< int   > { typedef long      type; };
+template<> struct SumTraits< long  > { typedef long long type; };
+\end{verbatim}
+}
+\item Now, all integral types sum to the next-largest type
+\item And, we can customize:
+{\scriptsize\begin{verbatim}
+template<> struct SumTraits< Widget> { typedef Wocket type; };
+\end{verbatim}
+}
+\item And all other types have a good default.
+
+\item Can we get the compiler to produce the integer traits for us?
+  \begin{itemize}
+    \item Yes, but that's arguably metaprogramming, so we'll tackle
+      that next time
+  \end{itemize}
+\end{itemize}
+\vskip 12pt
+\pause
+\begin{center}
+\Emph{Type traits provide a compile-time customization point.}
+\end{center}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Mapping Types to Values}
+\framesubtitle{JETS input}
+Another example: my JETS library (written at TerumoBCT), which serializes objects to and
+from JSON text.
+
+\begin{itemize}[<+->]
+\item JSON supports a set number of types in an N-ary tree of
+  key/value pairs
+\item JSON has no type safety:
+{\scriptsize
+\begin{verbatim}
+{"$type":"message", "valid":true, "Contents" : {"value":42, "pi":3.14}}
+\end{verbatim}
+}
+\begin{itemize}
+  \item To read, you first query to find out if the value can be
+    interpreted as what you want, \emph{then} you read it.
+{\scriptsize\begin{verbatim}
+  if (node.isBool())
+     myobj.valid = node.getBool();
+\end{verbatim}
+}
+\end{itemize}
+\item the JETS library (``JSON Extended Type Safety'') uses the type
+  of the variable being read into to determine how to read the JSON
+  stream.
+\item ... and we'd like a good error message when it's not the
+  expected type.
+\item So we need a way to map types to strings.
+
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{JETS error message traits}
+
+So, define traits classes that map types to strings:
+
+{\scriptsize\begin{verbatim}
+template<typename T> struct fieldtraits { static const char* tname () { return "INVALID"; }};
+
+// field traits for built in types
+template<> struct fieldtraits<bool>   { static const char* tname () { return "bool"  ; }};
+template<> struct fieldtraits<int >   { static const char* tname () { return "int"   ; }};
+template<> struct fieldtraits<string> { static const char* tname () { return "string"; }};
+
+template<typename T> struct fieldtraits<vector<T> > 
+     { static const char* tname () { return "Array"; }};
+\end{verbatim}
+}
+\pause
+And we use it deep in the guts of the parsing....
+{\scriptsize\begin{verbatim}
+template<typename T> IValue& operator|| (const Field<T>& f) {
+ ... much grunge in here ...
+if (!ok)
+    {
+       ebuff_ << "Struct error, field \"" << f.name
+              << "\" is not of type " << fieldtraits<T>::tname();
+    }
+\end{verbatim}
+}
+\pause
+\begin{center}
+\Emph{This is extensible; if you have your own type, you can
+  specialize \texttt{fieldtraits} for it, and have the correct text
+  show up in the error messages}
+\end{center}
+\end{frame}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{std::numeric\_limits}
+\begin{itemize}[<+->]
+\item Another example: \texttt{std::numeric\_limits}, which is a
+  template that has been specialized for arithmetic types:
+{\scriptsize\begin{verbatim}
+  std::numeric_limits<int>::is_integer == true;  // static const bool value
+
+  numeric_limits<double>::has_infinity == true; // ditto
+  
+  std::numeric_limits<unsigned short>::max() == 65535 // static fn
+  
+\end{verbatim}
+}
+
+\item In this case, the base (non-specialized) case exists;
+  \texttt{numeric\_limits<Widget>} compiles and gives reasonable results.
+\item The other approach is to leave the base case undefined, in which
+  case \texttt{numeric\_limits<Widget>} wouldn't compile.
+\item And, you can write the specialized version for your classes if
+  you want.
+\end{itemize}
+\pause
+\begin{center}
+Existence of the base case determines if types that don't have a
+specialized Trait can access default behavior, or if trying to do so
+is a compile-time error.
+\end{center}
+
+
+\end{frame}

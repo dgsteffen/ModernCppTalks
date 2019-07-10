@@ -1,0 +1,344 @@
+\subsection{Metaprogramming Traits}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Type Traits}
+\begin{itemize}[<+->]
+\item Recall the earlier example from the JETS code, serializing a
+  struct to JSON.
+\item When we write a field, we create a new node in the DOM and then
+  either write a value, or start a new subtree \Emph{(Pseudocode)}
+{\scriptsize\begin{verbatim}
+WriteNode(node n, int i)   { n.SetInt(i); }
+WriteNode(node n, bool b)  ( n.setBool(b); }
+..
+
+
+template<typename T> WriteValue( Node parent, const T& val)
+{
+  create newnode
+
+  if (leaf node)
+    newnode.WriteNode(val)
+  else // it's a root node for a subtree
+    newnode.setObject();
+    // Recurse
+    for (member in val)
+      WriteValue(newnode, member)
+}
+\end{verbatim}
+} 
+\item So, we need to know: is \texttt{T} a built-in type or a
+  user-defined type (class or struct)?
+\end{itemize}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Type Traits}
+\begin{itemize}[<+->]
+\item We could define traits classes for all known built-ins (bool,
+  int, short, etc) like last time.
+
+\item Or.... we could let the compiler figure it out!
+
+\vskip 12pt
+
+\item The \texttt{is\_class} template class has an enum that is 1 if
+  the template parameter is a class and 0 if it's not.
+\item \Emph{How is it done?}
+\item \texttt{Common\_6.9/jets/type\_traits.h}, it's straight out of
+  Vandevoorde and Josuttis.
+\vskip 12pt
+\item \Emph{Warning: entering several dark and dusty corners of the
+  language.  Bring a flashlight.}
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+
+
+
+
+
+
+
+
+public:
+
+   enum { value = ... magic in here ... };
+
+};
+
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+   // Now for some template functions that will never get called, but have distinct return types.
+
+   // This one takes a pointer-to-member of C, and returns a One.
+   template<typename C> static One test(int C::*);
+
+   // int C::* is a pointer-to-member of C.  This is a valid construct
+   //  **even if C doesn't have any int members **
+
+public:
+
+   enum { value = ... magic still coming... };
+
+};
+
+\end{verbatim}
+}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+   // Now for some template functions that will never get called, but have distinct return types.
+
+   // This one takes a pointer-to-member of C, and returns a One.
+   template<typename C> static One test(int C::*);
+
+   // This one will match anything else...
+   template<typename C> static Two test(...);
+
+public:
+
+   enum { value = ... almost there ... };
+
+};
+
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+   // Now for some template functions that will never get called, but have distinct return types.
+
+   // This one takes a pointer-to-member of C, and returns a One.
+   template<typename C> static One test(int C::*);   // #1
+
+   // This one will match anything else...
+   template<typename C> static Two test(...);        // #2
+
+public:
+
+   enum { value = (sizeof(test<T>(0)) == 1) };
+
+};
+
+\end{verbatim}
+}
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+\Emph{My head hurts.  One more time?}
+\begin{itemize}[<+->]
+\item We define two types that have different sizes
+\item We define two overloaded functions.
+\begin{itemize}
+  \item The first takes a pointer-to-member and returns something with sizeof 1
+  \item The second takes anything and returns something with sizeof 2
+\end{itemize}
+\item Arcane fact \#2: in overload resolution, vararg functions are
+  always the \emph{last} choice
+\item Arcane fact \#3: \texttt{int C::*} is 
+\begin{itemize}
+  \item a pointer-to-member-of C of type int.
+  \item a valid construct \emph{even if C doesn't have any int members}.
+  \item an invalid construct for things that can't have members.
+\end{itemize}
+\item If \texttt{T} is a class, struct, or union, both functions are
+  valid and are instantiated; the first is chosen.
+\item Otherwise, the first is invalid and SFINAE'd out of existence,
+  the other is the only function instantiated
+\item Checking \texttt{sizeof} the return type tells you which one the
+  compiler prefers
+
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{is\_class}
+\framesubtitle{1/N}
+{\scriptsize\begin{verbatim}
+
+template<typename T>
+class is_class
+{
+private:
+
+   typedef char One;                // a type with size 1
+   typedef struct {char a[2];} Two; // a type with size 2
+
+   // Now for some template functions that will never get called, but have distinct return types.
+
+   // This one takes a pointer-to-member of C, and returns a One.
+   template<typename C> static One test(int C::*);  // #1
+
+   // This one will match anything else...
+   template<typename C> static Two test(...);       // #2
+
+public:
+
+   enum { value = (sizeof(test<T>(0)) == 1) };
+
+};
+
+\end{verbatim}
+}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Using is\_class}
+\begin{itemize}[<+->]
+\item Now our JETS output pseudocode looks like this:
+{\scriptsize\begin{verbatim}
+WriteNode(node n, int i)   { n.SetInt(i); }
+WriteNode(node n, bool b)  ( n.setBool(b); }
+...
+
+template<typename T> WriteValue( Node parent, const T& val)
+{
+  create newnode
+
+  if ( is_class<T>::value )    // <-- conditional
+    newnode.setObject();
+    for (member in val)
+      WriteValue(newnode, member)
+
+  else 
+    newnode.WriteNode(val)
+}
+\end{verbatim}
+}
+\item Note that the conditional reads \texttt{if (1)} or \texttt{if (0)} upon instantiation.
+\item If the compiler is doing any optimization at all, the false
+  branch will be eliminated completely.
+
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Using is\_class}
+\framesubtitle{continued}
+\begin{itemize}[<+->]
+
+\item If T is an int we get
+{\scriptsize\begin{verbatim}
+template<> WriteValue<int>( Node parent, const int& val)
+{
+  create newnode
+  newnode.WriteNode(val)
+}
+\end{verbatim}
+}
+\item If it's a widget, we get
+{\scriptsize\begin{verbatim}
+template<> WriteValue<widget>( Node parent, const widget& val)
+{
+  create newnode
+  newnode.setObject();
+    for (member in val)
+      WriteValue(newnode, member)
+}
+\end{verbatim}
+}
+\item Effectively, \Emph{the compiler writes the function for us}.
+\end{itemize}
+
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Traits Metaprogramming}
+\begin{itemize}[<+->]
+\item This technique can be generalized to detecting, at compile time:
+\begin{itemize}[<+->]
+\item If a class has a specific member function or not.  (Introspection!)
+\item If a member function is virtual
+\item If A inherits from B
+\item If A and B both inherit from C.
+\item If a function parameter is a reference, or const, or a
+  const-reference, or...
+\end{itemize}
+\item If A is-convertable-to B
+\item ...
+\end{itemize}
+\end{frame}
