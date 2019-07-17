@@ -10,10 +10,10 @@
 \begin{itemize}
 \item Non-owning observer of a shared\_ptr-managed resource
 {\scriptsize\begin{verbatim}
-shared_ptr<int> a (new int(42)); // refcount == 1
-shared_ptr<int> b(a)             //      now == 2
+shared_ptr<int> a {new int(42)}; // refcount == 1
+shared_ptr<int> b {a}            //      now == 2
 
-weak_ptr<int> w(b);              // points to same int,
+weak_ptr<int> w {b};             // points to same int,
                                  // leaves refcount at 2
 assert (*w == 42);     // error! Can't deref weak ptr
 \end{verbatim}
@@ -48,7 +48,9 @@ Use for things that may or may not exist
 \begin{itemize}
 \item If the thing exists, use it (via the shared\_ptr created by locking)
 \item If the thing doesn't exist, you can test and do something reasonable.
-\item \Emph{If there's nothing reasonable, you have a big design problem.}
+  \begin{itemize}
+  \item \Emph{If there's nothing reasonable, you have a big design problem.}
+  \end{itemize}
 \end{itemize}
 \pause{}
 \vskip 12pt

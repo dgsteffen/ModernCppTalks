@@ -27,13 +27,13 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
-\frametitle{Dynamic Memory Is Easy}
+\frametitle{Dynamic Memory Is \Emph{Easy}}
 {\scriptsize\
 \begin{verbatim}
 OLD:                              NEW:
 
 void foo() {                      void foo() {
-  Widget* d = new Widget();          smart_ptr<Widget> d = new Widget();
+  Widget* w = new Widget();          smart_ptr<Widget> w { new Widget() };
   ...                                ....
   if (condition1)                    if (condition1) 
     return;       // Leak!             return;        // no leak!
@@ -44,7 +44,7 @@ void foo() {                      void foo() {
   foo(); // throws, leak!            foo();           // no leak!
   ...             
 
-  delete d;      // cleanup          // no delete, no leak!
+  delete dw      // cleanup          // no delete, no leak!
 }                                 } 
 \end{verbatim}
 }
@@ -59,9 +59,8 @@ its ctor, and releases it in the dtor, which executes at scope exit.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
 \frametitle{And the code gets cleaner too}
-
 Remember our Single-Entry-Single-Exit example:
-
+\vskip 6pt
 \begin{columns}[t]
 \column{.5\textwidth}
 Heavily nested if-blocks:
@@ -96,7 +95,7 @@ void foo() {
                               // #2
   if (!precondition2) return;
   smart_ptr<Widget> w = new Widget;
-  if (conditionB) return;
+  if (!conditionB) return;
   // finally do some work
   ...
   FiddleWidget(w);
@@ -112,6 +111,7 @@ void foo() {
 \end{verbatim}}
 \end{columns}
 \pause{}
+\vskip 6pt
 \Emph{Even in the absence of exceptions, exception-safe code is cleaner,
 faster, and more maintainable.}
 \end{frame}

@@ -10,7 +10,10 @@
 \vskip 12pt
 \item [std::weak\_ptr] Breaks ownership cycles
 \vskip 24pt
-\item [std::vector] A pointer so smart you don't even notice it is one (!)
+\item [std::vector] 
+\item [std::set]     Pointers so smart you don't even notice they are (!)
+\item [std::map]
+\item [...]
 \end{description}
 \end{frame}
 
@@ -35,7 +38,7 @@ a == nullptr; // now true!
 \end{verbatim}}
 
 \begin{itemize}
-\item Destructive copy! Wonky semantics -- can't use in standard containers, don't act
+\item Destructive copy! Wonky semantics -- can't use in standard containers, doesn't act
   like anything we have a good model for.
 \item (Non-value semantics are always wonky -- avoid)
 \item Desired behavior impossible without C++11 move semantics
@@ -90,7 +93,7 @@ With the advent of move semantics, we now have a proper solution.
 {\scriptsize\begin{verbatim}
 #include <memory>
 
-unique_ptr<int> i(new int(4));
+unique_ptr<int> i {new int(4)};
 cout << "i " << *i << endl;     // Use just like normal pointer
 
 \end{verbatim}}
@@ -130,13 +133,13 @@ int* nonowner = j.get()         // get the pointer, keep ownership
 int* nonowner = j.get()         // get the pointer, keep ownership
 int* owner = j.release();       // release ownership, now j==nullptr
 
-j = owner;                      // take ownership of existing ptr
+j = owner;                      // retake ownership of existing ptr
 
 j.reset();                      // delete ptr, now j==nullptr
 \end{verbatim}}
 \end{itemize}
-
-Provides the safest (and most restrictive) ownership model.  Prefer
+\vskip 6pt
+\texttt{unique\_ptr} provides the safest (and most restrictive) ownership model.  Prefer
 \texttt{unique\_ptr} when possible.
 
 \end{frame}
@@ -195,10 +198,10 @@ void f( widget* );                    (b)    f( wptr.get())
 \pause{}
 \item (b) is either
 \begin{itemize}
-  \item Legacy or OS (C code -- no references!)
+  \item Legacy or OS (C code in system library).
   \item Observing or processing \emph{the pointer} (taking ownership,
-    reseating, etc), possibly a sink: f is a pointer-to-widget consuming function that takes
-  responsibility for deleting the pointer.
+    reseating, etc), possibly a sink: f is a function that consumes
+    pointer-to-widgets and takes ownership of the pointer
   \item Using the NULL ptr as a sentinel value, or the value is optional
   \item Incorrect (Repent ye C programmers!)
 \end{itemize}
@@ -246,6 +249,43 @@ void f( const unique_ptr<widget>& );  (f)    f( wptr)
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile]
+%% \frametitle{std::make\_unique}
+%% \framesubtitle{Item 21, ``Modern Effective C++'' by Scott Meyers}
+%% Even better: prefer to initialize \texttt{unique\_ptr}s via
+%% \texttt{make\_unique}:
+%% {\scriptsize\begin{verbatim}
+%% std::unique_ptr<Camel> p {new Camel              (humps, legs, attitude)}; // good
+%% std::unique_ptr<Camel> p {std::make_unique<Camel>(humps, legs, attitude)}; // better
+%% auto                   p {std::make_unique<Camel>(humps, legs, attitude)}; // best
+%% \end{verbatim}}
+%% \begin{itemize}
+%%   \item Don't repeat the type name
+%%   \item Can be more efficient
+%%   \item Better exception safety (for arcane reasons)
+%%   \item We no longer type 'delete', so we shouldn't type 'new'
+%%     \begin{itemize}
+%%       \item This is the birth of a new, universally accepted
+%%         guideline: \Emph{application code should contain no 'new' or
+%%         'delete' keywords, except when writing RAII classes.}
+%%     \end{itemize}
+%% \end{itemize}
+
+%% Alas, \texttt{make\_unique} was omitted from the \CC11 standard (they
+%% just forgot), so it's technically only available in \CC14.  However,
+%% you write it yourself:
+
+%% {\scriptsize\begin{verbatim}
+%% template<typename T, typename.... Ts>
+%% std::unique_ptr<T> make_unique(Ts&&... params) {
+%% return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
+%% }
+%% \end{verbatim}}
+%% ... or use Abseil \url{https://abseil.io/} which will be availble on SOFA.
+%% \end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 \begin{frame}[fragile]
@@ -254,7 +294,7 @@ Custom deleter: provide a function to call for deletion
 {\scriptsize\begin{verbatim}
 auto dtor = [](int* p) { cout << "Ptr holds " << *p << endl; delete p; };
 
-unique_ptr<int, decltype(dtor)> q (new int(42), dtor);
+unique_ptr<int, decltype(dtor)> q {new int(42), dtor};
 
 q.reset();  // prints ``Ptr holds 42''
 \end{verbatim}}
@@ -265,6 +305,8 @@ q.reset();  // prints ``Ptr holds 42''
 More generally, this allows us to run \emph{arbitrary code} when the
 object is deleted.
 
+\vskip 6pt
+Alas, \texttt{make\_unique} doesn't support this, which is too bad.  We could write a \texttt{allocate\_unique} to do this if desired.
 
 \end{frame}
 
@@ -297,11 +339,11 @@ goes out of scope.
 {\scriptsize\begin{verbatim}
 void foo() 
 {  
-  shared_ptr<int> p1(new int); // count is 1
+  shared_ptr<int> p1{new int}; // count is 1
   {
-    shared_ptr<int> p2(p1);    // count is 2
+    shared_ptr<int> p2{p1};    // count is 2
     {
-      shared_ptr<int> p3(p1);  // count is 3
+      shared_ptr<int> p3{p1};  // count is 3
     }                          // count goes back down to 2
   }                            // count goes back down to 1
 }            // here the count goes to 0 and the int is deleted.
@@ -338,10 +380,11 @@ p1.reset();                    // drops refcount by 1, calls dtor if 0
     store the refcount
   \item Increment/decrement is thread-safe, which means a mutex
 \end{itemize}
+\vskip 6pt
 \pause{}
-\item Minimal, but not zero; these have a bad (and unjustified)
+\item Minimal, but not zero; these have an unjustified bad 
   reputation for bad runtime performance.
-\vskip 12pt
+\vskip 6pt
 \pause{}
 \item Beware of circular references (see \texttt{weak\_ptr} discussion below)
 \end{itemize}
@@ -377,8 +420,6 @@ Remember, if you're interested in just the widget, \Emph{take just the widget}.
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
 \subsection{make\_shared, make\_unique}
 \begin{frame}[fragile]
 \frametitle{``make'' functions}
@@ -404,16 +445,8 @@ auto sp = make_shared<Camel>(...);
 \begin{itemize}
 \item Only type the type once : ``DRY'' (Don't Repeat Yourself) principle
 \vskip 6pt
-\item Performance: make\_shared can be clever about memory allocation
-  and usage, frequently cuts the construction time in half.  See
-  Meyers ``Effective Modern C++'' for an excellent discussion.
-\item Exception safety:
-{\scriptsize\begin{verbatim}
-processWidgetCamel( unique_ptr<Widget>(new Widget()),
-                    shared_ptr<Camel> (new Camel()) );
-\end{verbatim}}
-may leak if either constructor throws (under arcane circumstances, I
-think banished in \CC17).  
+\item Performance: make\_functions can have memory and runtime advantages
+\item Better exception safety in some cases
 \vskip 6pt
 \item We are all used to being twitchy about new/delete.  
 \begin{itemize}
@@ -426,6 +459,35 @@ think banished in \CC17).
 \center{\Emph{Never write new or delete again}}
 
 \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile]
+\frametitle{make functions part 2}
+
+Alas, \texttt{make\_unique} was omitted from the \CC11 standard (they
+just forgot), so it's technically only available in \CC14.  However,
+you write it yourself:
+
+{\scriptsize\begin{verbatim}
+template<typename T, typename.... Ts>
+std::unique_ptr<T> make_unique(Ts&&... params) 
+{
+  return std::unique_ptr<T>(new T(std::forward<Ts>(params)...));
+}
+\end{verbatim}}
+\vskip 12pt
+... or use Abseil (\url{https://abseil.io/}) which will be availble on SOFA.
+\vskip 12pt
+
+\begin{center}
+This is the birth of a new, universally accepted  guideline: 
+\vskip 6pt
+\Emph{Application code should contain no 'new' or
+  'delete' keywords (except when writing RAII classes).}
+\end{center}
+\end{frame}
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -509,7 +571,8 @@ const void* ZlibMem::compress(const std::vector<char>& buffer)
      return nullptr;
   }
 
- // <-- memory leak here!  Would you have noticed?
+ // <-- memory leak over there!  Would you have noticed?
+ //     ... no leaks over here.
 
 \end{verbatim}}
 \end{columns}

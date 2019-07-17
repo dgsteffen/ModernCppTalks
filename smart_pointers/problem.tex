@@ -8,10 +8,10 @@ void foo() {
   double* d = new double[70];
   ...
   if (condition1)
-    return;       // Leak!
+    return;              // Leak!
   ...
   if (error)
-    throw ex;     // Leak!
+    throw exeption_type;  // Leak!
 
   foo()           // if an exception happens
                   // in here -- Leak!
@@ -29,6 +29,7 @@ void foo() {
 \frametitle{SESE}
 
 Single-Entry-Single-Exit is an attempt to mitigate this problem:
+\vskip 6pt
 
 \begin{columns}[t]
 \column{.5\textwidth}
@@ -43,7 +44,7 @@ void foo() {
         Widget* w = new Widget;
         if (w) {
            // finally do some work
-           FiddleWidget(w);
+           FiddleWidget(w, d);
            ...
            }
         delete w;
@@ -78,6 +79,7 @@ And doesn't help anyway
 \end{verbatim}}
 \end{columns}
 \pause{}
+\vskip 6pt
 In the presence of exceptions, \Emph{every function call} can exit the function
 \end{frame}
 
@@ -104,7 +106,11 @@ void foo() {
 }
 \end{verbatim}
 }
-Every statement must be wrapped in a try/catch block... this is part of the reason exceptions have a bad rap in C++.
+Every statement must be wrapped in a try/catch block... this is part
+of the reason exceptions have a bad rap in C++.
+\vskip 6pt
+(If you're handling exceptions by writing try and catch everwhere,
+you're doing it wrong -- but that's another talk)
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -112,18 +118,18 @@ Every statement must be wrapped in a try/catch block... this is part of the reas
 \begin{frame}[fragile,t]
 \frametitle{}
 \includegraphics[scale=0.5]{yoda.jpg}
-
+\begin{center}
 Many (most?) C++ code bases \emph{do not use exceptions}, including
 Google's, and including ours.
-
-Writing code \emph{as if} in the presence of exceptions makes code better.
-
+\vskip 6pt
+\Emph{Writing code \emph{as if} exceptions exist makes code better.}
+\end{center}
 \end{frame}
 
 \begin{frame}[fragile,t]
 \frametitle{A Rant}
 \framesubtitle{Before we go on...}
-There is something very wrong here:
+A side note: there is something very wrong here:
 \pause{}
 {\scriptsize \begin{verbatim}
 void foo() {
@@ -143,6 +149,8 @@ void foo() {
 }
 \end{verbatim}}
 \pause
+There's no need to dynamically allocate \texttt{w} in the first place.
+\vskip 6pt
 \Emph{This isn't Java, so stop it.}
 
 \end{frame}
@@ -206,6 +214,7 @@ Widget* widget = WidgetFactory(...);
 }
 \pause{}
 \item We don't know how long it's going to live (special case of \#1)
+\item Rare corner cases (arcane, nefarious, and sometimes dastardly).
 \end{enumerate}
 
 \vskip 12pt
