@@ -10,10 +10,9 @@
 \vskip 12pt
 \item [std::weak\_ptr] Breaks ownership cycles
 \vskip 24pt
-\item [std::vector] 
-\item [std::set]     Pointers so smart you don't even notice they are (!)
-\item [std::map]
-\item [...]
+\item [std::vector] Pointer so smart you don't even notice it is one (!)
+\item [std::set]    (ditto)
+\item [std::map]      
 \end{description}
 \end{frame}
 
@@ -226,10 +225,10 @@ void scary_widget_sink( widget* p); // will destroy p. PLEASE READ THIS
 What do these mean?
 
 {\scriptsize\begin{verbatim}
-void f (unique_ptr<widget> );         (c)    f( wptr) error!
-void f( unique_ptr<widget>&&);        (d)    f( std::move(wptr))
-void f( unique_ptr<widget>& );        (e)    f( wptr)
-void f( const unique_ptr<widget>& );  (f)    f( wptr)
+void f (unique_ptr<widget> );         (c)    f(wptr) error!
+void f( unique_ptr<widget>&&);        (d)    f(std::move(wptr))
+void f( unique_ptr<widget>& );        (e)    f(wptr)
+void f( const unique_ptr<widget>& );  (f)    f(wptr)
 \end{verbatim}}
 
 \begin{itemize}
@@ -382,7 +381,7 @@ p1.reset();                    // drops refcount by 1, calls dtor if 0
 \end{itemize}
 \vskip 6pt
 \pause{}
-\item Minimal, but not zero; these have an unjustified bad 
+\item Minimal, but not zero; these have an unjustified  
   reputation for bad runtime performance.
 \vskip 6pt
 \pause{}
@@ -423,6 +422,7 @@ Remember, if you're interested in just the widget, \Emph{take just the widget}.
 \subsection{make\_shared, make\_unique}
 \begin{frame}[fragile]
 \frametitle{``make'' functions}
+\framesubtitle{Item 21, ``Effective Modern C++'' by Scott Meyers}
 \begin{columns}[t]
 \column{.5\textwidth}
 This is OK
@@ -480,7 +480,7 @@ std::unique_ptr<T> make_unique(Ts&&... params)
 \vskip 12pt
 
 \begin{center}
-This is the birth of a new, universally accepted  guideline: 
+The std::make functions are the source of a new, universally accepted  guideline: 
 \vskip 6pt
 \Emph{Application code should contain no 'new' or
   'delete' keywords (except when writing RAII classes).}

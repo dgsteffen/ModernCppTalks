@@ -49,8 +49,8 @@ void foo() {                      void foo() {
 \end{verbatim}
 }
 
-(for some definition of ``smart\_ptr'')
-
+\emph{(for some definition of ``smart\_ptr'')}
+\vskip 6pt
 The smart pointer object receives a dynamically allocated object in
 its ctor, and releases it in the dtor, which executes at scope exit.
 \end{frame}
@@ -69,7 +69,7 @@ void foo() {
   if (precondition1) {
     double* d = new double[70];
     if (d) {
-      if (conditionA) {
+      if (precondition2) {
         Widget* w = new Widget;
         if (conditionB) {
            // finally do some work
@@ -94,7 +94,7 @@ void foo() {
   std::vector<double> d (70); // #1
                               // #2
   if (!precondition2) return;
-  smart_ptr<Widget> w = new Widget;
+  smart_ptr<Widget> w {new Widget};
   if (!conditionB) return;
   // finally do some work
   ...
