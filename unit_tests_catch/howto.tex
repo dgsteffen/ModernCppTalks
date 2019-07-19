@@ -1,0 +1,474 @@
+\section{How To Test...}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Floating point operations}
+\begin{frame}[fragile,t]
+\frametitle{Testing Floating Point}
+\framesubtitle{}
+This may be obvious, but it bears repeating:
+{\scriptsize\
+\begin{verbatim}
+TEST( FloatingTest, division_test) {
+  ASSERT_TRUE ( (1.0/3.0) * 3 == 3 );
+}
+\end{verbatim}}
+is a bad idea.  Good frameworks have a set of floating-point
+``approximately equals-to'' assertions of the $\Delta < \epsilon$
+variety:
+{\scriptsize\
+\begin{verbatim}
+  ASSERT_NEAR( (1.0/3)*3, 3, 1e-14 );
+\end{verbatim}}
+\begin{itemize}
+  \item Consider making adapters for user-defined mathematical types
+    (e.g. Vectors) so they are similarly supported by the framework.
+  \item Proceed with care!  Consider if ``approximately the same to
+    within $\epsilon$'' means
+\begin{itemize}
+  \item Relative error?
+  \item Absolute error?
+  \item Units-of-Last-Place (ULP) error?  (used for looking
+    specifically at floating-point roundoff).
+\end{itemize}
+\end{itemize}
+Warning: most test frameworks provide OK-but-not-great support for
+this.  You may have to roll your own if you're serious about error bounds.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Test for Failure}
+\begin{frame}[fragile,t]
+\frametitle{Testing Failure Modes}
+\framesubtitle{}
+It is vitally important to test not just that the code works, but that
+it fails the right way.
+{\scriptsize\
+\begin{verbatim}
+int factorial (int n);
+
+TEST( FactorialFunction, Factorial_Failure) {
+
+  ASSERT_THROW( factorial(-1), std::range_error );
+
+  ASSERT_EQ ( factorial (13), -1 );
+}
+\end{verbatim}}
+This test case fails if:
+\begin{itemize}
+  \item Calling factorial (-1) throws something other than std::range\_error 
+  \item Succeeds (doesn't throw anything) 
+  \item Calling factorial (13) returns 1932053504 (which is what you get on my laptop after integer overflow -- 
+    the answer is 6227020800) rather than -1
+\end{itemize}
+
+That is to say, the unit test \emph{fails} if the function \emph{doesn't} fail the right way.  This can be confusing.
+
+\end{frame}
+
+
+\subsection{Classes with pure virtual functions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Testing Abstract Base Classes (ABCs)}
+\framesubtitle{the problem}
+Consider:
+{\scriptsize\
+\begin{verbatim}
+class AbstractBase {
+  public:
+
+  virtual int PureVirtual () = 0
+
+  int NonVirtualSquare(int i) {
+    return i*i;
+  }
+};
+
+class Widget : public AbstractBase; // non-abstract
+class Wicket : public AbstractBase; // "
+\end{verbatim}}
+How do I unit test the NonVirtualSquare method?
+{\scriptsize\
+\begin{verbatim}
+\\in AbstractBase_test.cpp
+
+TEST( AbstractBase_test, NVSquareTest {
+  AbstractBase i;  // oops! compile error
+  ASSERT_EQ( i.square(5), 25 );
+}
+\end{verbatim}}
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Testing ABC's}
+\framesubtitle{the solution?}
+You could test in one of the derived classes:
+{\scriptsize\
+\begin{verbatim}
+// in Widget_test.cpp
+
+TEST( WidgetTest, NVSquareTest {
+  Widget i;  // ok
+  ASSERT_EQ( i.square(5), 25 );
+}
+\end{verbatim}}
+... but a failure shows up in Widget's test suite, not in
+AbstractBase's test suite where it belongs.  Widget's test suite
+fails, but Widget isn't incorrect.
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Testing ABC's}
+\framesubtitle{the solution!}
+Instead, derive a test class for the purpose:
+{\scriptsize\
+\begin{verbatim}
+// in AbstractBase_test.cpp  (the AbstractBase's test suite)
+
+class AbstractBaseTester : public AbstractBase {
+  virtual int PureVirtual () { ... } // some implementation 
+};
+
+TEST( AbstractBaseTest, NVSquareTest {
+  AbstractBaseTester i;  // ok
+  ASSERT_EQ( i.square(5), 25 );
+}
+\end{verbatim}}
+The tester class is only visible in the unit test, and allows all the
+functionality of the abstract base class to be exercised.
+
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Test Classes Not Methods}
+\begin{frame}[fragile,t]
+\frametitle{Testing Class Behavior}
+\framesubtitle{The plot thickens}
+This section based on
+``Test Smells and Fragrances Kevlin Henney'' 
+{\scriptsize\
+\begin{verbatim}
+class Cup {
+  ...
+  Cup();            // new cups are empty
+  bool IsEmpty(); 
+  bool Fill();    // Fills completely, returns false on failure
+  bool Drink();   // Empties completely, "
+};
+
+\end{verbatim}}
+
+Side note: the interface is interesting, in that:
+\begin{itemize}
+  \item Filling a full cup is not an error, it's just a failure
+    (wastes beer).
+  \item Drinking from an empty cup is not an error, it's just
+    dissapointing.
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Black-box testing conundrum}
+``A test suite tests a collection of member functions'' : test each member function separately
+{\scriptsize\
+\begin{verbatim}
+// test the constructor             
+TEST( CupTests, constructor) {      
+  Cup cup;                      // new cups are supposed to be empty       
+  ASSERT_TRUE( cup.IsEmpty() ); // test this.
+}                                   
+
+// test IsEmpty                       
+TEST( CupTests, testIsEmpty) {        
+  Cup cup;                      // empty by construction 
+  ASSERT_TRUE( cup.IsEmpty() ); // test ... uh, didn't we just do this?
+ }
+
+\end{verbatim}}
+Without reaching into the Cup class and examining internal state:
+\begin{itemize}
+\item we can't verify the constructor's postconditions without a correct
+IsEmpty method
+\item  and we can't verify the IsEmpty method without a cup
+in a known state.
+\end{itemize}
+
+\Emph{Is this class untestable?}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Black-box testing conundrum}
+\begin{itemize}[<+->]
+\item We could ignore the problem (``Goofus'').
+\item Maybe test something else?
+{\scriptsize\
+\begin{verbatim}
+// test IsEmpty                       
+TEST( CupTests, testIsEmpty) {        
+  Cup cup;
+
+  ASSERT_TRUE( cup.IsEmpty() ); // just to be sure
+
+  cup.Fill(); // should be full
+
+  ASSERT_TRUE( not cup.IsEmpty() );
+ }                                     
+\end{verbatim}}
+\item First... ``just to be sure''?  Do you really expect that to
+  fail?  What are you testing? (but people do this a lot)
+\item Second... this assumes that Fill works, this is even worse
+\end{itemize}
+\pause{}
+\begin{center}
+\Emph{Fundamentally, if we only test via public interface, we eventually
+have a circular-logic problem: you have to use the interface to
+test the interface, so at some point you have to trust something, right?}
+\end{center}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test for consistent behavior}
+The solution is to \emph{not} take a
+member-function-by-member-function approach.  \Emph{Test the class, not the
+member functions.}
+{\scriptsize\
+\begin{verbatim}
+TEST( CupTests, A_New_Cup_Is_Empty) {        
+  Cup cup;
+  ASSERT_TRUE( cup.IsEmpty() ); 
+ }                                     
+
+Test( CupTests, An_Empty_Cup_Can_Be_Filled) {
+  Cup cup;                   // empty, proved above
+  ASSERT_TRUE( cup.Fill() ); // Fill returns true on success
+}
+
+TEST( CupTests, A_Filled_Cup_Is_Full) {
+  Cup cup;
+  cup.Fill();
+  ASSERT_TRUE( not cup.IsEmpty() );
+}  
+\end{verbatim}}
+
+\begin{itemize}
+\item Note the vastly improved test names.
+\item Testing the class \emph{as a whole}, not individual methods.
+\item But have we really broken the circular logic loop?
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test for consistent behavior}
+
+\begin{itemize}
+\item Note that we are now testing \emph{consistency of the
+  interface}, \Emph{not} \emph{correctness of the implementation}
+\item Repeat the previous sentence to yourself several times.
+\item This is Popper's falsifiability criterion: you can't prove it
+  true, you can just fail to prove it false.
+\item \Emph{SCIENCE!}
+\end{itemize}
+
+This class exhibits \emph{cohesion}, which is a good thing, and it
+means precicely that we can't get ``under its skin'' without surgery.
+
+\begin{center}
+\Emph{If a class exhibits correct and consistent behavior in all
+  cases, we must declare it correct, even if the implementation is
+  nothing but mutually cancelling bugs.}
+\end{center}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test for consistent behavior}
+\framesubtitle{prove it's not correct}
+{\scriptsize\
+\begin{verbatim}
+class Cup {
+
+  Cup() : empty_(false) {}                 // wrong!
+
+  bool IsEmpty() { return not empty_; }      // wrong!
+
+  bool Fill() { 
+    if (not empty_) {  // backwards
+      empty_ = true;   // backwards
+      return true;
+    ...
+  }
+  ...
+private:
+  bool empty_;
+};
+\end{verbatim}}
+\vskip 6pt
+\begin{itemize}
+\item This \emph{should not pass code review}, but it is nevertheless
+\emph{provably correct}.
+
+\item The implementation is correct, it's just horribly confusing.
+
+\item Black-box testing can't tell the difference, and that's the point.
+\end{itemize}
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{White Box Testing}
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {The idea}
+Alternately, we could abandon black-box testing.
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                 // Cup_test.cpp
+                                         
+class Cup {                              
+                                         #include <Cup.h>                    
+  Cup() : empty_(true) {}                                                    
+                                                                             
+  bool IsEmpty() { return empty_; }      TEST( CupTests, TestConstructor)         
+                                         {                                        
+  bool Fill() {                             Cup c;                                
+    if (empty) {                            ASSERT_TRUE( c.empty_ ); // error!
+    ...                                  }                           
+  }
+  ...                                       
+private:
+  bool empty_;
+};
+\end{verbatim}}
+This won't compile (empty\_ is a private member variable), but if it
+did, we would have absolute, unambigous proof that new cups are empty.
+
+How can we make this work?
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {The idea}
+This is a horrible idea, but it actually works on most compilers:
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                 // Cup_test.cpp
+                                         #define private public
+class Cup {                              
+                                         #include <Cup.h>
+  Cup() : empty_(true) {}                
+                                         
+  bool IsEmpty() { return empty_; }      TEST( CupTests, TestConstructor)         
+                                         {                                        
+  bool Fill() {                             Cup c;                                
+    if (empty) {                            ASSERT_TRUE( c.empty_ ); // fine!
+    ...                                  }
+  }
+  ...
+private:
+  bool empty_;
+};
+\end{verbatim}}
+\begin{itemize}
+\item This is, formally, undefined behavior.
+\item One undisputed advantage: we can test Cup without changing the code.
+\end{itemize}
+\begin{center}
+\Emph{Don't do this!}
+\end{center}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {The standard solution}
+If we are going to break encapsulation, do it correctly
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                 // Cup_test.cpp
+                                         #include <Cup.h>
+class Cup {                              
+                                         class CupTester {
+  Cup() : empty_(true) {}                   bool& empty_;    // proxy 
+                                            
+  bool IsEmpty() { return empty_; }         CupTester(Cup& c) 
+                                              : empty_(c.empty_) {}
+  bool Fill() {                           };  
+    if (empty) {                         
+    ...                                  TEST( CupTests, TestConstructor)     
+  }                                      {                                    
+                                            Cup c;                            
+  friend class CupTester;                   CupTester tester(c);
+                                            ASSERT_TRUE( tester.empty_ ); 
+};                                        }
+\end{verbatim}}
+\begin{itemize}
+\item Cup declares a tester friend class
+\item The friend class exposes Cup's innards
+\end{itemize}
+This is the recommended way to do white-box testing.
+\end{frame}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{White-Box Pros and Cons}
+
+Cons:
+\begin{itemize}
+\item Tests are tightly coupled to implementation.
+\begin{itemize}
+  \item Changing the implementation breaks the unit tests.
+  \item Keeping the unit tests working is an increased maintenance burden.
+\end{itemize}
+\item Tests no longer document the correct way to use a class
+\item Tests can get much more complicated
+\item Test authors are no longer bound by the class interface,
+  reducing the pressure to improve a bad interface design.
+\end{itemize}
+
+Pros:
+\begin{itemize}
+\item Eash access to internal state makes tests easy to write
+\item Requires very minor changes to code
+\item Doesn't require redesign or refactoring
+\item For some complex cases, it's the only viable option.
+\end{itemize}
+
+
+\end{frame}
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Software Engineering Considerations}
+%% \end{frame}
+
