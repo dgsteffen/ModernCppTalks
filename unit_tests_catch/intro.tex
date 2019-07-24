@@ -6,7 +6,7 @@
 This talk has three parts:
 
 \begin{itemize}
-\item Overview of Unit Testing
+\item Brief review of Unit Testing
 \item Unit Test Goals (high level, generic)
 \item Using Catch2 to actually do those things
 \end{itemize}
@@ -38,19 +38,26 @@ This talk has three parts:
 \begin{frame}[fragile]
 \frametitle{Definitions}
 \framesubtitle{}
-``Unit Testing'' is testing at the ``smallest unit of
+\begin{description}
+\item [Unit Testing] is testing at the ``smallest unit of
 functionality''.  For software engineers, these 
 ``smallest units'' are
 \begin{itemize}
 \item functions (or sets of related functions)
 \item member functions (or classes)
 \end{itemize}
+\end{description}
 
 In both cases, we are testing at the individual ``chunk'' of
 executable code, the function or member function level.
 \vskip 6pt
 (The term can be used to mean different things in other areas of
 engineering, but this definition is standard in software.)
+\begin{description}
+\item [Unit Tests] are small, stand-alone executables which execute a
+  suite of tests against the code in questino, and provide an
+  unambiguous pass/fail result.
+\end{description}
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -59,34 +66,34 @@ engineering, but this definition is standard in software.)
 \begin{frame}[fragile]
 \frametitle{Why Unit Test}
 \framesubtitle{The bigger picture}
-Definition: 
-
-Programming is ``make it work now''.
-
-Software Engineering is ``it still works in 5 years''.
-
-Unit testing helps with the first, but it also...
-
-\end{frame}
-
+Definitions, from Titus Winters's kenote at CppCon 2017: 
+\begin{description}
+\item [Programming] is ``make the code work'' (now).
+\item [Software Engineering] is programming integrated over time.  The
+  code continues to work:
 \begin{itemize}
-\item Google Test (GTest), probably the most commonly used.
-\item Boost.Test (part of the Boost library), also widely used.
-\item Catch2 (``Catch''), newer ``more advanced'' framework, still
-  young but rapidly gaining market share
+\item in other environments, operating systems, etc
+\item with new compilers, tools, dependencies
+\item in other projects
+\item under maintenance
+\item \Emph{for as long as the code is expected to live|}
 \end{itemize}
-\vskip 6pt
-GTest is the standard framework in use at SciTec.  SOFA and OCEANA are using
-Catch2.
-\vskip 6pt
-\begin{center}
-\Emph{Unit testing frameworks make it easy to write unit tests; they reduce
-the friction involved, provide consistent testing facilities, and
-enforce consistent testing practices.}
-\end{center}
+\end{description}
+
+Unit testing is a foundational support for this:
+\begin{itemize}
+\item \Emph{ Prove} programming is complete: it works now.
+\item \Emph{ Prove} it continues to work, or \Emph{ break} visibly if it
+  doesn't.
+\item \Emph{ Show} how to use the code (readability and documentation)
+\item \Emph{ Improve} the design by forcing \emph{testability} to be a
+  design criterion.
+
+\end{itemize}
+
+Note only the first of these is \Emph{ Programming}, the rest are \Emph{Software Engineering}.
 
 \end{frame}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

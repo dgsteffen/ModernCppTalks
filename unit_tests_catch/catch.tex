@@ -1,24 +1,100 @@
-\section{How To Test...}
+\section{Catch}
+
+
+\begin{frame}[fragile,t]
+\frametitle{Catch}
+\framesubtitle{Anatamy of a Catch test}
+{\scriptsize\
+\begin{verbatim}
+#include "catch.hpp"
+
+TEST_CASE("test case name") {
+    REQUIRE(false);
+}
+\end{verbatim}}
+produces
+{\scriptsize\
+\begin{verbatim}
+Running Tests...
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+tests is a Catch v2.4.1 host application.
+Run with -? for options
+
+-------------------------------------------------------------------------------
+Base
+-------------------------------------------------------------------------------
+/home/dsteffen/sofa/sofa/common-core/catch/example_test.cpp:3
+...............................................................................
+
+/home/dsteffen/sofa/sofa/common-core/catch/example_test.cpp:4: FAILED:
+  REQUIRE( false )
+
+===============================================================================
+test cases: 1 | 1 failed
+assertions: 1 | 1 failed
+\end{verbatim}}
+\end{frame}
+
+
+
+
+\begin{frame}[fragile,t]
+\frametitle{Catch}
+\framesubtitle{Anatamy of a Catch test}
+{\scriptsize\
+\begin{verbatim}
+#include "catch.hpp"
+
+TEST_CASE("test case name", "[tag1][tag2]") {
+    CHECK( any expression ); // if false, report and keep going
+    REQUIRE( any expression ); // if false, abort test case
+}
+\end{verbatim}}
+
+\begin{itemize}
+  \item Special tags: 
+    \begin{itemize}
+      \item {[!hide]} or [.] skips the test by default. ''[.mytag]'' for
+        example.
+      \item {[!mayfail]} -- don't fail the test (but still report). ``Expected to fail''
+      \item {[!shouldfail]} -- as above, but \emph{fails} the test if it passes.
+      \item etc...
+    \end{itemize}
+\end{itemize}
+
+Note the support for {\bf Ease of use}: it's easy to run the
+executable, and easy to run selected subsets of the test suite.
+
+Also, note that the test is (mostly) silent, and produces output only
+relevent to failures.
+
+\end{frame}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Floating point operations}
+
 \begin{frame}[fragile,t]
 \frametitle{Testing Floating Point}
 \framesubtitle{}
 This may be obvious, but it bears repeating:
 {\scriptsize\
 \begin{verbatim}
-TEST( FloatingTest, division_test) {
-  ASSERT_TRUE ( (1.0/3.0) * 3 == 3 );
+TEST_CASE( "Floating Point Division") {
+  REQUIRE ( (1.0/3.0) * 3 == 3 );
 }
 \end{verbatim}}
-is a bad idea.  Good frameworks have a set of floating-point
-``approximately equals-to'' assertions of the $\Delta < \epsilon$
-variety:
+is a bad idea. Catch2 provides a mechanism for this:
 {\scriptsize\
 \begin{verbatim}
-  ASSERT_NEAR( (1.0/3)*3, 3, 1e-14 );
+TEST_CASE( "Floating Point Division") {
+  REQUIRE ( (1.0/3.0) * 3 == Approx(3) );
+}
 \end{verbatim}}
+where the \texttt{Approx} class can take arguments to control the comparison.
+ Good frameworks have a set of floating-point
+``approximately equals-to'' assertions of the $\Delta < \epsilon$
+variety:
 \begin{itemize}
   \item Consider making adapters for user-defined mathematical types
     (e.g. Vectors) so they are similarly supported by the framework.
@@ -31,35 +107,64 @@ variety:
     specifically at floating-point roundoff).
 \end{itemize}
 \end{itemize}
-Warning: most test frameworks provide OK-but-not-great support for
-this.  You may have to roll your own if you're serious about error bounds.
 \end{frame}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Test for Failure}
+\begin{frame}[fragile,t]
+\frametitle{Testing Edge Cases Modes}
+Test edge cases, including values at the edges of the domain.
+{\scriptsize\begin{verbatim}
+int factorial(int n)
+{
+  if (n < 0)
+    throw (std::range_error("Factorial of negative number"));
+
+  if (n > 12) return std::numeric_limits<int>::max();
+
+  if (n == 0) return 1;
+
+  return n * factorial(n-1);
+}
+
+
+TEST_CASE("Factorial success") {
+  REQUIRE( factorial(0)  == 1 );
+  REQUIRE( factorial(1)  == 1 );
+  REQUIRE( factorial(5)  == 120 );
+  REQUIRE( factorial(12) == 479001600 );   // this is as big as an int can go
+
+}
+\end{verbatim}}
+
+Note: the domain of our function is [0, 12].  We have tested both
+edges, the ``interesting'' cases ($0! = 1$), and one in the middle.
+
+\end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
 \frametitle{Testing Failure Modes}
 \framesubtitle{}
-It is vitally important to test not just that the code works, but that
-it fails the right way.
-{\scriptsize\
-\begin{verbatim}
-int factorial (int n);
-
-TEST( FactorialFunction, Factorial_Failure) {
-
-  ASSERT_THROW( factorial(-1), std::range_error );
-
-  ASSERT_EQ ( factorial (13), -1 );
-}
+It is even more important to test failure modes -- make sure it fails,
+in the right way, for the right reasons.
+{\scriptsize\begin{verbatim}
+int factorial(int n)
+{
+  if (n < 0)                                 TEST_CASE("Factorial error condition") {    
+    throw (std::range_error())                 REQUIRE_THROWS(    factorial(-1) );          
+  if (n > 12)                                  REQUIRE_THROWS_AS( factorial(-1) ,        
+    return std::numeric_limits<int>::max();                       std::range_error);                    
+  if (n == 0) return 1;                        REQUIRE( factorial(13) ==                 
+  return n * factorial(n-1);                         std::numeric_limits<int>::max() );  
+}                                              REQUIRE( factorial(13) == factorial(14) );
 \end{verbatim}}
+
 This test case fails if:
 \begin{itemize}
   \item Calling factorial (-1) throws something other than std::range\_error 
   \item Succeeds (doesn't throw anything) 
   \item Calling factorial (13) returns 1932053504 (which is what you get on my laptop after integer overflow -- 
-    the answer is 6227020800) rather than -1
+  the answer is 6227020800) rather than max int.
 \end{itemize}
 
 That is to say, the unit test \emph{fails} if the function \emph{doesn't} fail the right way.  This can be confusing.
