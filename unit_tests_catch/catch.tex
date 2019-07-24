@@ -171,6 +171,36 @@ That is to say, the unit test \emph{fails} if the function \emph{doesn't} fail t
 
 \end{frame}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Readability}
+\begin{frame}[fragile,t]
+\frametitle{Catch is good at storytelling}
+\end{frame}
+Consider recasting the above in ``novel'' form:
+{\scriptsize\begin{verbatim}
+SCENARIO("Factorial tests") {
+  SECTION("Success Conditions") {
+
+    REQUIRE( factorial(0)  == 1 );
+    REQUIRE( factorial(1)  == 1 );
+    REQUIRE( factorial(5)  == 120 );
+    REQUIRE( factorial(12) == 479001600 );   // this is as big as an int can go
+   }
+
+  WHEN("passing a negative argument, we get an exception") {
+    REQUIRE_THROWS_AS( factorial(-1) , std::range_error);
+  }
+  WHEN("exceeding the max argument, we get int max") {
+    REQUIRE( factorial(13) == std::numeric_limits<int>::max() );  
+    REQUIRE( factorial(13) == factorial(14) );
+  }
+}
+\end{verbatim}}
+
+Note the improved readability and ``story line''.
+
+\end{frame}
 
 \subsection{Classes with pure virtual functions}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
