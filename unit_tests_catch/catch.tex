@@ -176,22 +176,25 @@ That is to say, the unit test \emph{fails} if the function \emph{doesn't} fail t
 \subsection{Readability}
 \begin{frame}[fragile,t]
 \frametitle{Catch is good at storytelling}
-\end{frame}
 Consider recasting the above in ``novel'' form:
 {\scriptsize\begin{verbatim}
-SCENARIO("Factorial tests") {
-  SECTION("Success Conditions") {
-
+SCENARIO("Factorial tests") 
+{
+  SECTION("Success Conditions") 
+  {
     REQUIRE( factorial(0)  == 1 );
     REQUIRE( factorial(1)  == 1 );
     REQUIRE( factorial(5)  == 120 );
     REQUIRE( factorial(12) == 479001600 );   // this is as big as an int can go
    }
 
-  WHEN("passing a negative argument, we get an exception") {
+  WHEN("passing a negative argument, we get an exception") 
+  {
     REQUIRE_THROWS_AS( factorial(-1) , std::range_error);
   }
-  WHEN("exceeding the max argument, we get int max") {
+
+  WHEN("exceeding the max argument, we get int max") 
+  {
     REQUIRE( factorial(13) == std::numeric_limits<int>::max() );  
     REQUIRE( factorial(13) == factorial(14) );
   }
@@ -229,9 +232,9 @@ How do I unit test the NonVirtualSquare method?
 \begin{verbatim}
 \\in AbstractBase_test.cpp
 
-TEST( AbstractBase_test, NVSquareTest {
+SCENARIO( "AbstractBase test") {
   AbstractBase i;  // oops! compile error
-  ASSERT_EQ( i.square(5), 25 );
+  REQUIRE ( i.square(5) ==  25 );
 }
 \end{verbatim}}
 \end{frame}
@@ -245,9 +248,9 @@ You could test in one of the derived classes:
 \begin{verbatim}
 // in Widget_test.cpp
 
-TEST( WidgetTest, NVSquareTest {
+SCENARIO( "AbstractBase Test", "[widget]") {
   Widget i;  // ok
-  ASSERT_EQ( i.square(5), 25 );
+  REQUIRE ( i.square(5) == 25 );
 }
 \end{verbatim}}
 ... but a failure shows up in Widget's test suite, not in
@@ -270,9 +273,9 @@ class AbstractBaseTester : public AbstractBase {
   virtual int PureVirtual () { ... } // some implementation 
 };
 
-TEST( AbstractBaseTest, NVSquareTest {
+SCENARIO( "AbstractBase Test", "[abstract base]") {
   AbstractBaseTester i;  // ok
-  ASSERT_EQ( i.square(5), 25 );
+  REQUIRE( i.square(5) ==  25 );
 }
 \end{verbatim}}
 The tester class is only visible in the unit test, and allows all the
@@ -283,7 +286,7 @@ functionality of the abstract base class to be exercised.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Test Classes Not Methods}
+\subsection{Behavior Driven Testing}
 \begin{frame}[fragile,t]
 \frametitle{Testing Class Behavior}
 \framesubtitle{The plot thickens}
@@ -320,15 +323,15 @@ Side note: the interface is interesting, in that:
 {\scriptsize\
 \begin{verbatim}
 // test the constructor             
-TEST( CupTests, constructor) {      
-  Cup cup;                      // new cups are supposed to be empty       
-  ASSERT_TRUE( cup.IsEmpty() ); // test this.
+TEST_CASE( "Cup constructor test", "[cup]") {
+  Cup cup;                  // new cups are supposed to be empty       
+  REQUIRE( cup.IsEmpty() ); // test this.
 }                                   
 
 // test IsEmpty                       
-TEST( CupTests, testIsEmpty) {        
-  Cup cup;                      // empty by construction 
-  ASSERT_TRUE( cup.IsEmpty() ); // test ... uh, didn't we just do this?
+TEST_CASE( "Cup isEmpty test", "[cup]") {
+  Cup cup;                   // empty by construction 
+  REQUIRE ( cup.IsEmpty() ); // test ... uh, didn't we just do this?
  }
 
 \end{verbatim}}
@@ -354,14 +357,14 @@ in a known state.
 {\scriptsize\
 \begin{verbatim}
 // test IsEmpty                       
-TEST( CupTests, testIsEmpty) {        
+TEST_CASE( "Cup isEmpty Tests", "[cup]") {
   Cup cup;
 
-  ASSERT_TRUE( cup.IsEmpty() ); // just to be sure
+  REQUIRE( cup.IsEmpty() ); // just to be sure
 
   cup.Fill(); // should be full
 
-  ASSERT_TRUE( not cup.IsEmpty() );
+  REQUIRE( not cup.IsEmpty() );
  }                                     
 \end{verbatim}}
 \item First... ``just to be sure''?  Do you really expect that to
@@ -380,32 +383,217 @@ test the interface, so at some point you have to trust something, right?}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{frame}[fragile,t]
+\frametitle{White vs Black Box Testing}
+This is the ``White Box'' vs ``Black Box'' debate.
+\begin{itemize}
+\item If black-box testing isn't viable, open up the box and look at
+  the innards:
+{\scriptsize\ \begin{verbatim}
+TEST_CASE( "Cup isEmpty Tests", "[cup]") {
+  Cup cup;
+
+  REQUIRE( cup.empty_ ); // examine private data
+                           // (which won't compile)
+
+  cup.Fill(); // should be full
+
+  REQUIRE( not cup.empty_ );
+ }    
+\end{verbatim}}
+(which requires access to protected and private data members -- more
+  on this later)
+\item This is a very common approach
+\item This is also a very frowned-upon approach (we'll see why)
+\item How, technically, is it done?
+\end{itemize}
+
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{White Box Testing}
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {How to access private data?}
+This is a horrible idea, but it works...
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                       // Cup_test.cpp                  
+                                                                                
+class Cup {                                    #define private public                                  
+  Cup() : empty_(true) {}                      #include <Cup.h>                                                          
+
+  bool IsEmpty() { return empty_; }            TEST_CASE("Cup ctor") 
+                                               {                                         
+  bool Fill() {                                   Cup c;                                 
+   if (not empty_) return false;                  REQUIRE( c.empty_ ); 
+   empty_ = false;                             }
+   return true;
+  }
+
+  bool Drink() { ... }
+
+private:
+  bool empty_;
+};
+\end{verbatim}}
+\begin{itemize}
+\item This is, formally, undefined behavior.
+\item One undisputed advantage: we can test Cup without changing the code.
+\end{itemize}
+\begin{center}
+\Emph{Don't do this!}
+\Emph{\#define private public is pure evil}
+\end{center}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {The standard solution}
+If we are going to break encapsulation, do it correctly
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                 // Cup_test.cpp
+                                         #include <Cup.h>
+class Cup {                              
+                                         class CupTester {
+  Cup() : empty_(true) {}                   bool& empty;    // proxy 
+                                            
+  bool IsEmpty() { return empty_; }         CupTester(Cup& c) 
+                                              : empty(c.empty_) {}
+  bool Fill() {                           };  
+    if (empty) {                         
+    ...                                  TEST( CupTests, TestConstructor)     
+  }                                      {                                    
+                                            Cup c;                            
+  friend class CupTester;                   CupTester tester(c);
+                                            REQUIRE( tester.empty ); 
+};                                        }
+\end{verbatim}}
+\begin{itemize}
+\item Cup declares a tester friend class
+\item The friend class exposes Cup's innards
+\end{itemize}
+This is the recommended way to do white-box testing.
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{White Box Testing}
+\framesubtitle {The obvious problem}
+Test code is now tightly coupled to {\bf implementation details}.  If
+we rig our cup with a pressure sensor, and query it to see if the cup
+is empty...
+{\scriptsize\
+\begin{verbatim}
+// Cup.h                                 // Cup_test.cpp
+                                         #include <Cup.h>
+class Cup {                              
+                                         class CupTester {
+  Cup() : empty_(true) {}                   bool& empty;    // proxy 
+                                            
+  bool IsEmpty() {                          CupTester(Cup& c) 
+    return sensor_.query() == 0;              : empty_(c.empty) {} // <- build break
+  }                                       };  
+private:                                         
+  friend class CupTester;                
+  PressureSensor sensor_;                
+};                                       
+\end{verbatim}}
+\begin{itemize}
+\item We have to update the unit test code to match the new implementation
+\item Additional maintenance burden
+\begin{itemize}
+\item ... and consider what happens to the team writing the
+  PresureSensor class -- they make a change and our build breaks
+\end{itemize}
+\item The unit test now needs to be re-validated (re-reviewed), and
+  can't stand as an independent source of validation
+\end{itemize}
+
+\end{frame}
+
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Behavior Driven Testing}
+\begin{frame}[fragile,t]
 \frametitle{Test for consistent behavior}
 The solution is to \emph{not} take a
 member-function-by-member-function approach.  \Emph{Test the class, not the
 member functions.}
 {\scriptsize\
 \begin{verbatim}
-TEST( CupTests, A_New_Cup_Is_Empty) {        
+TEST_CASE("A new cup is empty") {
   Cup cup;
-  ASSERT_TRUE( cup.IsEmpty() ); 
+  REQUIRE( cup.IsEmpty() ); 
  }                                     
 
-Test( CupTests, An_Empty_Cup_Can_Be_Filled) {
-  Cup cup;                   // empty, proved above
-  ASSERT_TRUE( cup.Fill() ); // Fill returns true on success
+TEST_CASE( "An empty cup can be filled" ) {
+  Cup cup;               // empty, proved above
+  REQUIRE( cup.Fill() ); // Fill returns true on success
 }
 
-TEST( CupTests, A_Filled_Cup_Is_Full) {
+TEST_CASE( "A filled cup is full") {
   Cup cup;
   cup.Fill();
-  ASSERT_TRUE( not cup.IsEmpty() );
+  REQUIRE( not cup.IsEmpty() );
 }  
 \end{verbatim}}
 
 \begin{itemize}
 \item Note the vastly improved test names.
+\item And we can now tell a much better story...
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test for consistent behavior}
+\framesubtitle{Tell the story}
+Re-write the above using Catch's BDD sections...
+{\tiny \begin{verbatim}
+TEST_CASE("Cup Tests") {
+
+  GIVEN("A new cup") {
+   Cup cup;
+
+   THEN("A new cup is empty") { REQUIRE( cup.IsEmpty() ); }
+
+   THEN("An empty cup can be filled" ) {
+     REQUIRE( cup.Fill() );
+
+     AND_THEN("A filled cup is full") { REQUIRE( not cup.IsEmpty() ); }
+
+     WHEN("We try to drink from an empty cup") {
+       // remember -- the cup is empty here!
+       REQUIRE (not cup.Drink() );
+
+       THEN("The cup stays empty") {
+         REQUIRE( not cup.IsFull() )
+
+         AND_THEN("The cup can be filled") {
+           // Verify that no error condition persists
+           REQUIRE( cup.Fill());
+         }
+      }
+   }
+}  
+\end{verbatim}
+}
+\begin{itemize}
 \item Testing the class \emph{as a whole}, not individual methods.
+\item The test is easy to read, tells a story, contains context for
+  all tests.
 \item But have we really broken the circular logic loop?
 \end{itemize}
 \end{frame}
@@ -470,105 +658,6 @@ private:
 \end{itemize}
 \end{frame}
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{White Box Testing}
-\begin{frame}[fragile,t]
-\frametitle{White Box Testing}
-\framesubtitle {The idea}
-Alternately, we could abandon black-box testing.
-{\scriptsize\
-\begin{verbatim}
-// Cup.h                                 // Cup_test.cpp
-                                         
-class Cup {                              
-                                         #include <Cup.h>                    
-  Cup() : empty_(true) {}                                                    
-                                                                             
-  bool IsEmpty() { return empty_; }      TEST( CupTests, TestConstructor)         
-                                         {                                        
-  bool Fill() {                             Cup c;                                
-    if (empty) {                            ASSERT_TRUE( c.empty_ ); // error!
-    ...                                  }                           
-  }
-  ...                                       
-private:
-  bool empty_;
-};
-\end{verbatim}}
-This won't compile (empty\_ is a private member variable), but if it
-did, we would have absolute, unambigous proof that new cups are empty.
-
-How can we make this work?
-
-\end{frame}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{frame}[fragile,t]
-\frametitle{White Box Testing}
-\framesubtitle {The idea}
-This is a horrible idea, but it actually works on most compilers:
-{\scriptsize\
-\begin{verbatim}
-// Cup.h                                 // Cup_test.cpp
-                                         #define private public
-class Cup {                              
-                                         #include <Cup.h>
-  Cup() : empty_(true) {}                
-                                         
-  bool IsEmpty() { return empty_; }      TEST( CupTests, TestConstructor)         
-                                         {                                        
-  bool Fill() {                             Cup c;                                
-    if (empty) {                            ASSERT_TRUE( c.empty_ ); // fine!
-    ...                                  }
-  }
-  ...
-private:
-  bool empty_;
-};
-\end{verbatim}}
-\begin{itemize}
-\item This is, formally, undefined behavior.
-\item One undisputed advantage: we can test Cup without changing the code.
-\end{itemize}
-\begin{center}
-\Emph{Don't do this!}
-\end{center}
-\end{frame}
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\begin{frame}[fragile,t]
-\frametitle{White Box Testing}
-\framesubtitle {The standard solution}
-If we are going to break encapsulation, do it correctly
-{\scriptsize\
-\begin{verbatim}
-// Cup.h                                 // Cup_test.cpp
-                                         #include <Cup.h>
-class Cup {                              
-                                         class CupTester {
-  Cup() : empty_(true) {}                   bool& empty_;    // proxy 
-                                            
-  bool IsEmpty() { return empty_; }         CupTester(Cup& c) 
-                                              : empty_(c.empty_) {}
-  bool Fill() {                           };  
-    if (empty) {                         
-    ...                                  TEST( CupTests, TestConstructor)     
-  }                                      {                                    
-                                            Cup c;                            
-  friend class CupTester;                   CupTester tester(c);
-                                            ASSERT_TRUE( tester.empty_ ); 
-};                                        }
-\end{verbatim}}
-\begin{itemize}
-\item Cup declares a tester friend class
-\item The friend class exposes Cup's innards
-\end{itemize}
-This is the recommended way to do white-box testing.
-\end{frame}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
