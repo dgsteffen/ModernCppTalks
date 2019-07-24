@@ -1,0 +1,196 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Goals}
+
+\begin{frame}[fragile,t]
+\frametitle{The Goals}
+\begin{itemize}
+\item 0. Write Tests
+\item 1. Write tests that test what you wanted to test
+\item 2. Write readable tests: correct by inspection
+\item 3. Write complete tests: test failure modes and edge cases
+\item 4. Write demonstrative tests: show how to use the API
+\item 5. Write resilient tests: hermetic, only breaks when there is an
+  unacceptable behavior change
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\begin{frame}[fragile,t]
+\frametitle{Properties of good tests}
+
+\begin{itemize}
+\item \Emph{Unit tests must be easy to run (one button push).}
+\item \Emph{Unit tests must return an unambiguous pass/fail result.}
+\item Correctness : it tests what it's supposed to test (and
+  nothing else)
+\item Readability :
+\begin{itemize}
+  \item Tests don't have tests, so they \emph{must be correct by inspection}
+  \item Should read like a novel: setup, action, conclusion, and a happy ending
+\end{itemize}
+\item Completeness : tests cover the whole API, and only the API
+  \begin{itemize}
+  \item including edge cases, \emph{particularly} including edge cases
+  \item excluding stuff that isn't under test
+  \end{itemize}
+\item Demonstrability : best documentation of how to use the API.
+\item Resilience : ``the notion that your tests should only fail if the
+  thing they were actually intended to demonstrate became false, and
+  should fail \emph{for no other reason}''
+\item \Emph{Test code is just as important as system code}
+\end{itemize}
+
+"Note that we didn't call these rules, we did call them goals of good
+tests and I don't know that you can necessarily always get all of
+them.''
+
+%% \begin{itemize}
+%% \item good tests are 100\% better than bad tests
+%% \item even bad tests are 10000\% better than no tests
+%% \end{itemize}
+
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Ease of use}
+\begin{itemize}
+\item Unit tests must be easy to run. This is a function of the unit
+  test framework, but there are a few things developers can keep in
+  mind:
+\begin{itemize}
+  \item Group unit tests with some care, so developers can run just
+    the tests relevant to their work. (We'll see how to group tests
+    later)
+  \item Don't write tests that require external setup; all unit tests
+    should be self-contained executables. (All modern frameworks
+    provide this, unless you're really doing something odd.)
+\end{itemize}
+\item Unit tests must run quickly, or allow relevant subsets to be run quickly.
+\item Tests should be silent, unless they are failing; and failing
+  tests should output only text relevant to the failure.  This implies
+  that neither tests nor application code should be writing to the
+  console. All "debugging" output should be removed prior to check-in.
+  (Example later)
+\end{itemize}
+\end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Readability}
+\begin{itemize}
+\item Tests must be provably correct by inspection (since we don't test our tests). Code should be clear and local.
+\item    Avoid large (or even small) amounts of boilerplate or setup code.
+\end{itemize}
+
+Catch2 is particularly good at supporting this (as we will see).
+
+\end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Demonstrability}
+%% \begin{itemize}
+%% \item 
+%%   looking elsewhere.
+%% \end{itemize}
+%% \vskip
+%% \end{frame}
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Black box tests}
+%% \framesubtitle{$\approx 21:00 - 33:00$}
+%% Definitions:
+%% \begin{itemize}
+%%   \item {\bf Black-box testing:} tests use only the public
+%%     interface of the test article.  (The test article is a ``black box'' you can't see
+%%     inside of.)
+%%   \item {\bf White-box testing:} tests access the internal state of
+%%     the test article. (You can ``see inside the box'').  Also
+%%     ``clear-box'', ``glass-box'', etc.
+%% \end{itemize}
+%% \vskip 6pt
+%% Black box testing is much preferred over white-box, to the degree that
+%% many people say ``Black-box is the only way to test'' and ``White-box
+%% testing is a mistake''.
+
+%% \vskip 6pt
+%% That's overstating the case.  Black-box is better, but not always
+%% doable. We'll see how to white-box test below,
+%% and discuss the pros and cons.
+
+%% \end{frame}
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Test Result Data}
+%% \framesubtitle{$\approx 29:00$}
+%% Hyrum and Titus make fun of the ``run your code to generate the output
+%% that you verify your code against''.  But...
+%% \begin{itemize}[<+->]
+%% \item We did exactly this on OCEANA as a system test -- run the whole
+%%   thing, get output, save it to a ``canon'' file, compare with that.
+%% \item Note that this does not test that the system is correct, just
+%%   that it hasn't changed.
+%% \item This is \emph{still} really useful when refactoring or
+%%   optimizing.
+%% \item And.... \emph{it found a bug}.  The output didn't compare
+%%   roughly 1/3 times.
+%% \item We had nondeterministic behavior, and who knows how long it
+%%   would have taken us to notice.
+%% \item (Look up ``strict weak ordering'' in sorting predicates)
+%% \end{itemize}
+%% \pause{}
+%% \Emph{Bad tests are still 10000\% better than no tests.}
+%% \end{frame}
+
+
+
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \begin{frame}[fragile,t]
+%% \frametitle{Sustainability, and Properties of good tests}
+%% \framesubtitle{$\approx 44:58 - 47:00$}
+
+
+%% \begin{itemize}
+%% \item Again: write tests, bad tests are better than no tests
+%% \end{itemize}
+
+
+%% \end{frame}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Culture}
+\framesubtitle{$\approx 57:25$}
+\begin{itemize}
+\item Tests are only part of the solution (Defence in depth)
+\begin{itemize}
+\item code review
+\item proper testing
+\item static analysis
+\item dynamic analysis
+\item hardening code
+\item canarying
+\item production monitoring
+\end{itemize}
+
+\item Culture
+\end{itemize}
+
+
+\end{frame}
+
