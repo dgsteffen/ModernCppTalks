@@ -16,22 +16,22 @@ Answer, What's the Question?}
 \item{\scriptsize
 \begin{verbatim}
 vector<string> get_names() {... return retval;} // generator fn
+
 vector<string> names = get_names();             // use generator
 \end{verbatim}
 }
 
-\item In principle, two copies of the vector, and a default constructor.
+\item The vector is created in \texttt{get\_names}, returned, and used
+to copy-construct \texttt{names}.
 
-\item If there are N strings in the vector, each copy could require as many
-as N+1 memory allocations and a whole slew of cache-unfriendly data
-accesses as the string contents are copied.
+\item If there are N strings in the vector, the copy operation requires N+1 memory allocations and a whole slew of cache-unfriendly data accesses.
 
 
 \vskip 12pt
 \item Option 1: don't make a copy, don't ever change the result
 {\scriptsize
 \begin{verbatim}
-vector<string> const& names = get_names();
+const vector<string>& names = get_names();
 \end{verbatim}
 }
 
@@ -48,7 +48,7 @@ unique_ptr<vector<string>> get_names();
 \item Option 3: FORTRAN-style ``out parameters''
 {\scriptsize
 \begin{verbatim}
-void get_names( vector<string>& m_names);
+void get_names( vector<string>& m_names );
 \end{verbatim}
 }
 
@@ -63,19 +63,20 @@ void get_names( vector<string>& m_names);
 \frametitle{Copies Are Inevitable}
 {\scriptsize
 \begin{verbatim}
-class Vector {...};
+class Vector {...};  // Math vector for linear algebra
 
 Vector operator+ (Vector const& X, Vector const& Y) {
   Vector result(X);
   return result += Y;
 }
-...
+
 Vector C =    A + B  + D  + Foo(E+F);
    --->  = (((A + B) + D) + Foo(E+F));
 \end{verbatim}
 }
 
-\begin{itemize}[<+->]
+%\begin{itemize}[<+->]
+\begin{itemize}
 \item Five subexpressions means five unnamed temporaries, means five
   copies, and then the assignment.
 \item Options 2 and 3 are not an option unless we give up the syntax.
@@ -94,9 +95,13 @@ Vector C =    A + B  + D  + Foo(E+F);
 \begin{frame}[fragile,t]
 \frametitle{Examples In Real Code}
 
-\begin{itemize}[<+->]
+\begin{itemize}%[<+->]
 
-\item Common Data Store (global data, with mutex locks)
+\item Global mutex-locked data object
+\begin{itemize}
+  \item Access means: lock the mutex, make a copy of the data, unlock
+  the mutex
+\end{itemize}
 {\scriptsize
 \begin{verbatim}
 virtual dataType Get() const;
@@ -145,27 +150,28 @@ optimizations, as we shall soon see.}}
 {\scriptsize
 \begin{verbatim}
 vector<string> names = get_names();
-vector<string> names(get_names);
+vector<string> names {get_names};
 \end{verbatim}}
 
 \vskip 6pt
 
 \item<3->Return Value Optimization (RVO):{\scriptsize
 \begin{verbatim}
-vector<string> get_names() {
+string existential() {
   string twoB, not2B;
   ...
   return twoB + " or " + not2B; } 
 
-vector<string> my_names = get_names();
+string exist = existential();
 \end{verbatim}}
 \vskip 6pt
-\item<4->''Named'' Return Value Optimization (NRVO):{\scriptsize
+\item<4->``Named'' Return Value Optimization (NRVO):{\scriptsize
 \begin{verbatim}
 vector<string> get_names() {
   vector<string> result; 
   ... 
-  return result; } 
+  return result;
+ } 
 
 vector<string> my_names = get_names();
 \end{verbatim}}
@@ -196,7 +202,7 @@ vector<string> my_names = get_names();
 {\scriptsize
 \begin{verbatim}
 vector<string> names = get_names();
-vector<string> names(get_names);
+vector<string> names {get_names};
 \end{verbatim}
 }
 

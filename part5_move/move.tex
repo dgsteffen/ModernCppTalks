@@ -12,8 +12,9 @@
 \item ``Expensive Copy'' almost always means ``holds expensive resources''.
 
       \begin{itemize}[<+->]
-      \item Copying floats, ints? Invisible
+      \item Copying floats or ints? Invisible
       \item Copying big structs? Easy.  (On stack, memcpy, etc)
+\vskip 6pt
       \item \texttt{vector<vector<string>{}>}  ...  memory allocation hell
       \item shared resources -- mutexes (expensive), resource contention
       \item sockets, files, streams -- does copy even make sense?
@@ -97,7 +98,7 @@ name: \textcolor{magenta} {rvalue}.
 
 \item {\bf lvalue}: can appear on the left side of an assignment
 \begin{itemize}     
-  \item Has a name and an address
+  \item Has an address and usually a name
   \item EG: variables (note: const objects are still lvalues!)
   \item Reference spelled ``\&'' as usual.
 \end{itemize}
@@ -143,7 +144,7 @@ f()+j;         // Rvalue: ditto for function return value.  In both
                // cases, unnamed temps exist only long enough to 
                // participate in enclosing expression.
 
-int q  = i+j;  // q is lvalue, initialized (copied?) from rvalue
+int q  = i+j;  // q is lvalue, initialized from rvalue
 
 int z  = f();  // ditto
 
@@ -234,7 +235,9 @@ things can result from typedefs, template deduction, etc.
 {\scriptsize
 \begin{verbatim}
 
-typedef int& IR;  typedef int&& IRR;
+typedef int& IR;  
+
+typedef int&& IRR;
 
 // reference collapse
 
@@ -444,7 +447,7 @@ Foo   bar() { Foo f;                   // Or this; the
 }
 The return statement is the last time 'f' can be referenced,
 so it's kind of an honorary rvalue.
-
+\vskip 6pt
 \texttt{return std::move(var)} is implied when returning a local variable.
 
 \end{itemize}
@@ -474,6 +477,12 @@ void foo ( bar local ) {        // but this
 \begin{center}
 \Emph{Don't force the compiler to make a copy if it can move or elide.}
 \end{center}
+\item Also, the API is clearer -- it's obvious to the caller that a
+copy is being made, which has performance implications, and is useful
+in other ways.
+\begin{center}
+\Emph{Maximize the amount of information in an interface.}
+\end{center}
 \end{itemize}
 
 \end{frame}
@@ -485,18 +494,18 @@ void foo ( bar local ) {        // but this
 \frametitle{Writing Functions III: Binding}
 {\scriptsize
 \begin{verbatim}
-A Foo (const A& a, A& b, A c, A&& d)
+T Foo (const T& a, T& b, T c, T&& d)
 {
   // a: lvalue,    const-ref to external l-or-rvalue
   // b: lvalue,    ref to external lvalue (not rvalue!)
   // c: lvalue,    local copy
   // d: lvalue(!), ref to external rvalue
 
-  A e // lvalue, local variable
+  T e // lvalue, local variable
 
-  A&& r = bar(a,b); // lvalue(!), local ref bound to rvalue
-                    // semantically an lvalue
-                    // but it's an organ donor
+  T&& r = bar(a,b); // lvalue(!), local ref bound to rvalue
+                    //      semantically an lvalue
+                    //      but it's an organ donor
 
   // Return value options: choose one:
 
@@ -668,11 +677,11 @@ struct Widget {
  std::string s;
 
   Widget(Widget&& rhs)
-    : s(rhs.s)             // Incorrect!
+    : s(rhs.s)             // no move, copies
    {...}
 
   Widget(Widget&& rhs)
-    : s(std::move(rhs.s))  // Correct!
+    : s(std::move(rhs.s))  // moves
    {...}
 \end{verbatim}
 }
