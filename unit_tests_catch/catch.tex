@@ -286,7 +286,7 @@ functionality of the abstract base class to be exercised.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Behavior Driven Testing}
+\subsection{Object Oriented Testing}
 \begin{frame}[fragile,t]
 \frametitle{Testing Class Behavior}
 \framesubtitle{The plot thickens}
@@ -562,7 +562,7 @@ TEST_CASE( "A filled cup is full") {
 \framesubtitle{Tell the story}
 Re-write the above using Catch's BDD sections...
 {\tiny \begin{verbatim}
-TEST_CASE("Cup Tests") {
+SCENARIO("Cup Tests") {
 
   GIVEN("A new cup") {
    Cup cup;
@@ -690,9 +690,52 @@ Pros:
 \end{frame}
 
 
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% \begin{frame}[fragile,t]
-%% \frametitle{Software Engineering Considerations}
-%% \end{frame}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{frame}[fragile,t]
+\frametitle{Test Fixtures}
+Test Fixtures are an alternate way to share setup and teardown amongst
+many test cases.
+\begin{itemize}
+\item Used much less in Catch because of the BDD structure
+\item Still useful for one-time setup logic (E.G. reading a large data
+  file)
+\item The previous example could be (badly) written as:
+{\scriptsize \begin{verbatim}
+class CupTestFixture {
+public:
+
+  Cup cup; // shared across all tests
+
+  CupTestFixture() {  } // setup in here if any
+};
+
+TEST_CASE_METHOD(CupTestFixture, "A new cup is empty") {
+   REQUIRE( cup.IsEmpty() );
+}
+
+TEST_CASE_METHOD(CupTestFixture, "An empty cup can be filled") {
+   REQUIRE( cup.Fill() );
+   THEN ("A filled cup is full") {
+     REQUIRE( not cup.IsEmpty() );
+   }
+}
+\end{verbatim}}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Test Fixtures}
+\begin{itemize}
+\item Each \texttt{TEST\_CASE\_METHOD} is now creating a derived class
+  with member function, each of which is an independent test.
+\item The Fixture's constructor can take care of setting up
+  Singletons, which can persist for the entire test suite.
+\item Example: OCEANA has unit tests that depend on having a
+  background-suppressed stack of frames.  This process takes ~15
+  seconds.  We use a test fixture to do this once, at the beginning of
+  the test suite.
+\end{itemize}
+
+\end{frame}
 
